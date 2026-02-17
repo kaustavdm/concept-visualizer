@@ -16,6 +16,13 @@
   import type { PlacementMode } from '$lib/components/controls/PlacementToggle.svelte';
 
   const VIZ_TYPES: VisualizationType[] = ['graph', 'tree', 'flowchart', 'hierarchy'];
+  const ENGINE_ORDER: ExtractionEngineId[] = ['llm', 'nlp', 'keywords', 'semantic'];
+  const ENGINE_LABELS: Record<ExtractionEngineId, string> = {
+    llm: 'LLM',
+    nlp: 'NLP (compromise)',
+    keywords: 'Keywords (RAKE)',
+    semantic: 'Semantic (TF.js)'
+  };
 
   let activeFile: ConceptFile | undefined = $derived(
     $filesStore.files.find(f => f.id === $filesStore.activeFileId)
@@ -25,6 +32,24 @@
   let controlPlacement = $state<PlacementMode>('hud');
   let exportMenuOpen = $state(false);
   let autoSend = $derived(activeFile?.settings.autoSend ?? false);
+
+  // Engine toast state
+  let engineToast = $state('');
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function showEngineToast(name: string) {
+    engineToast = name;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { engineToast = ''; }, 2000);
+  }
+
+  function cycleEngine() {
+    const current = $settingsStore.extractionEngine as ExtractionEngineId;
+    const idx = ENGINE_ORDER.indexOf(current);
+    const next = ENGINE_ORDER[(idx + 1) % ENGINE_ORDER.length];
+    settingsStore.update({ extractionEngine: next });
+    showEngineToast(ENGINE_LABELS[next]);
+  }
 
   // Track keyboard controller
   let kbController: ReturnType<typeof createKeyboardController> | null = null;
@@ -80,6 +105,9 @@
         break;
       case 'cycle_viz_type':
         cycleVizType();
+        break;
+      case 'cycle_engine':
+        cycleEngine();
         break;
       case 'export':
         exportMenuOpen = !exportMenuOpen;
@@ -289,3 +317,14 @@
     </EditorPane>
   {/snippet}
 </AppShell>
+
+{#if engineToast}
+  <div
+    class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-medium shadow-lg"
+    style="background: var(--accent, #3b82f6); color: white;"
+    role="status"
+    aria-live="polite"
+  >
+    Engine: {engineToast}
+  </div>
+{/if}

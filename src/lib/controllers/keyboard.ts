@@ -3,7 +3,7 @@ export type PadAction =
   | 'focus_up' | 'focus_down' | 'focus_left' | 'focus_right'
   | 'fit_to_screen'
   | 'pan_up' | 'pan_down' | 'pan_left' | 'pan_right'
-  | 'visualize' | 'cycle_viz_type' | 'export' | 'toggle_auto_send'
+  | 'visualize' | 'cycle_viz_type' | 'cycle_engine' | 'export' | 'toggle_auto_send'
   | 'deselect';
 
 const KEY_MAP: Record<string, PadAction> = {
@@ -27,7 +27,7 @@ const KEY_MAP: Record<string, PadAction> = {
 
 // Actions that should fire only once per press (not repeat)
 const DISCRETE_ACTIONS: Set<PadAction> = new Set([
-  'fit_to_screen', 'visualize', 'cycle_viz_type',
+  'fit_to_screen', 'visualize', 'cycle_viz_type', 'cycle_engine',
   'export', 'toggle_auto_send', 'deselect'
 ]);
 
@@ -44,6 +44,18 @@ export function createKeyboardController(options: KeyboardControllerOptions) {
 
   function handleKeyDown(e: KeyboardEvent) {
     const key = e.key;
+
+    // Shift+Tab: cycle engine (before main KEY_MAP lookup)
+    if (e.shiftKey && key === 'Tab') {
+      if (options.isTextInputFocused()) return;
+      e.preventDefault();
+      if (!heldKeys.has('Shift+Tab')) {
+        heldKeys.add('Shift+Tab');
+        options.onAction('cycle_engine');
+      }
+      return;
+    }
+
     const action = KEY_MAP[key];
     if (!action) return;
 
@@ -62,6 +74,10 @@ export function createKeyboardController(options: KeyboardControllerOptions) {
 
   function handleKeyUp(e: KeyboardEvent) {
     heldKeys.delete(e.key);
+    // Clean up Shift+Tab composite key when either key is released
+    if (e.key === 'Tab' || e.key === 'Shift') {
+      heldKeys.delete('Shift+Tab');
+    }
   }
 
   function attach() {
