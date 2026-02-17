@@ -19,7 +19,8 @@
     <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Files</h2>
     <button
       onclick={onCreate}
-      class="text-sm text-blue-600 hover:text-blue-800 font-medium"
+      class="text-sm font-medium"
+      style="color: var(--accent)"
       title="New file"
     >
       + New

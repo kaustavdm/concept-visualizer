@@ -35,7 +35,8 @@
 
 <div class="flex-1 flex flex-col p-4 gap-3">
   <textarea
-    class="flex-1 w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent placeholder:text-gray-400"
+    class="flex-1 w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent placeholder:text-gray-400"
+    style="--tw-ring-color: var(--accent)"
     placeholder="Describe a concept to visualize..."
     value={text}
     oninput={handleInput}
@@ -50,6 +51,7 @@
         checked={autoSend}
         onchange={(e) => onAutoSendToggle((e.target as HTMLInputElement).checked)}
         class="rounded border-gray-300"
+        style="accent-color: var(--accent)"
       />
       Auto-visualize
     </label>
@@ -58,7 +60,8 @@
       <button
         onclick={onvisualize}
         disabled={loading || !text.trim()}
-        class="px-4 py-1.5 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        class="px-4 py-1.5 text-sm font-medium rounded-lg text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+        style="background: var(--accent)"
       >
         {loading ? 'Generating...' : 'Visualize'}
         {#if !loading}

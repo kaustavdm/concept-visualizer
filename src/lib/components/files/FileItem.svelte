@@ -34,12 +34,14 @@
 
 <button
   class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors group
-    {active ? 'bg-blue-50 text-blue-900' : 'text-gray-700 hover:bg-gray-100'}"
+    {active ? '' : 'text-gray-700 hover:bg-gray-100'}"
+  style={active ? 'background: var(--accent-light); color: var(--accent-text)' : ''}
   onclick={onclick}
 >
   {#if editing}
     <input
-      class="w-full bg-white border border-blue-400 rounded px-1 py-0.5 text-sm focus:outline-none"
+      class="w-full bg-white border rounded px-1 py-0.5 text-sm focus:outline-none"
+      style="border-color: var(--accent)"
       bind:value={editTitle}
       onblur={finishEditing}
       onkeydown={handleKeydown}

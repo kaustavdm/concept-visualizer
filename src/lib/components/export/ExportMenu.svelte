@@ -31,7 +31,10 @@
   </button>
 
   {#if open}
-    <div class="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-20 min-w-[140px]">
+    <div
+      class="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-20 min-w-[140px]"
+      style="background: var(--glass-bg); backdrop-filter: blur(16px); border: 1px solid var(--glass-border)"
+    >
       <button onclick={handlePdf} class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">
         PDF
       </button>
