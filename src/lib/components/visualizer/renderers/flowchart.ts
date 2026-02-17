@@ -56,11 +56,11 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   const g = svg.append('g');
 
-  svg.call(
-    d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 3])
-      .on('zoom', (event) => g.attr('transform', event.transform))
-  );
+  const zoom = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.3, 3])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+  (svgEl as any).__d3Zoom = zoom;
 
   // Arrows
   svg.append('defs').append('marker')
@@ -73,7 +73,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
-    .attr('fill', '#9ca3af');
+    .style('fill', 'var(--viz-edge)');
 
   // Edges
   g.selectAll('line')
@@ -83,7 +83,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('y1', d => (positions.get(d.source)?.y || 0) + NODE_HEIGHT / 2)
     .attr('x2', d => positions.get(d.target)?.x || 0)
     .attr('y2', d => (positions.get(d.target)?.y || 0) - NODE_HEIGHT / 2)
-    .attr('stroke', '#9ca3af')
+    .style('stroke', 'var(--viz-edge)')
     .attr('stroke-width', 1.5)
     .attr('marker-end', 'url(#arrowhead)');
 
@@ -96,7 +96,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('x', d => ((positions.get(d.source)?.x || 0) + (positions.get(d.target)?.x || 0)) / 2)
     .attr('y', d => ((positions.get(d.source)?.y || 0) + (positions.get(d.target)?.y || 0)) / 2)
     .attr('font-size', '10px')
-    .attr('fill', '#6b7280')
+    .style('fill', 'var(--viz-edge-label)')
     .attr('text-anchor', 'middle');
 
   // Nodes
@@ -113,8 +113,8 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('width', NODE_WIDTH)
     .attr('height', NODE_HEIGHT)
     .attr('rx', d => d.type === 'decision' ? 0 : 8)
-    .attr('fill', d => d.type === 'decision' ? '#fef3c7' : '#eff6ff')
-    .attr('stroke', d => d.type === 'decision' ? '#f59e0b' : '#3b82f6')
+    .style('fill', d => d.type === 'decision' ? 'var(--viz-flowchart-fill-decision)' : 'var(--viz-flowchart-fill)')
+    .style('stroke', d => d.type === 'decision' ? 'var(--viz-flowchart-stroke-decision)' : 'var(--viz-flowchart-stroke)')
     .attr('stroke-width', 1.5);
 
   nodeG.append('text')
@@ -124,5 +124,5 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'central')
     .attr('font-size', '12px')
-    .attr('fill', '#1f2937');
+    .style('fill', 'var(--text-primary)');
 }

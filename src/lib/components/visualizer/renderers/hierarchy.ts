@@ -33,11 +33,11 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
   const g = svg.append('g')
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
-  svg.call(
-    d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 3])
-      .on('zoom', (event) => g.attr('transform', event.transform))
-  );
+  const zoom = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.3, 3])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+  (svgEl as any).__d3Zoom = zoom;
 
   // Links (horizontal)
   g.selectAll('path')
@@ -46,8 +46,8 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('d', d3.linkHorizontal()
       .x((d: any) => d.y)
       .y((d: any) => d.x) as any)
-    .attr('fill', 'none')
-    .attr('stroke', '#d1d5db')
+    .style('fill', 'none')
+    .style('stroke', 'var(--viz-edge)')
     .attr('stroke-width', 1.5);
 
   // Nodes
@@ -59,12 +59,12 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   nodeG.append('circle')
     .attr('r', 6)
-    .attr('fill', (d: any) => d.children ? '#3b82f6' : '#10b981');
+    .style('fill', (d: any) => d.children ? '#3b82f6' : '#10b981');
 
   nodeG.append('text')
     .text((d: any) => d.data.label)
     .attr('font-size', '12px')
-    .attr('fill', '#1f2937')
+    .style('fill', 'var(--text-primary)')
     .attr('dx', (d: any) => d.children ? -12 : 12)
     .attr('dy', 4)
     .attr('text-anchor', (d: any) => d.children ? 'end' : 'start');

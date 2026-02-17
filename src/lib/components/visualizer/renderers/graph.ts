@@ -30,18 +30,18 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
   const g = svg.append('g');
 
   // Zoom
-  svg.call(
-    d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 3])
-      .on('zoom', (event) => g.attr('transform', event.transform))
-  );
+  const zoom = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.3, 3])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+  (svgEl as any).__d3Zoom = zoom;
 
   // Edges
   const link = g.append('g')
     .selectAll('line')
     .data(edges)
     .join('line')
-    .attr('stroke', '#d1d5db')
+    .style('stroke', 'var(--viz-edge)')
     .attr('stroke-width', 1.5);
 
   // Edge labels
@@ -51,7 +51,7 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .join('text')
     .text(d => d.label || '')
     .attr('font-size', '10px')
-    .attr('fill', '#9ca3af')
+    .style('fill', 'var(--viz-edge-label)')
     .attr('text-anchor', 'middle');
 
   // Nodes
@@ -60,8 +60,8 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .data(nodes)
     .join('circle')
     .attr('r', 20)
-    .attr('fill', d => groupColor(d.group, groups))
-    .attr('stroke', '#fff')
+    .style('fill', d => groupColor(d.group, groups))
+    .style('stroke', 'var(--viz-node-stroke)')
     .attr('stroke-width', 2)
     .call(drag(simulation) as any);
 
@@ -72,7 +72,7 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .join('text')
     .text(d => d.label)
     .attr('font-size', '12px')
-    .attr('fill', '#1f2937')
+    .style('fill', 'var(--text-primary)')
     .attr('text-anchor', 'middle')
     .attr('dy', 35);
 

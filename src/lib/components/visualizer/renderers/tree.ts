@@ -34,11 +34,11 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
     .attr('transform', `translate(${margin.left},${margin.top})`);
 
   // Zoom
-  svg.call(
-    d3.zoom<SVGSVGElement, unknown>()
-      .scaleExtent([0.3, 3])
-      .on('zoom', (event) => g.attr('transform', event.transform))
-  );
+  const zoom = d3.zoom<SVGSVGElement, unknown>()
+    .scaleExtent([0.3, 3])
+    .on('zoom', (event) => g.attr('transform', event.transform));
+  svg.call(zoom);
+  (svgEl as any).__d3Zoom = zoom;
 
   // Links
   g.selectAll('path')
@@ -47,8 +47,8 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
     .attr('d', d3.linkVertical()
       .x((d: any) => d.x)
       .y((d: any) => d.y) as any)
-    .attr('fill', 'none')
-    .attr('stroke', '#d1d5db')
+    .style('fill', 'none')
+    .style('stroke', 'var(--viz-edge)')
     .attr('stroke-width', 1.5);
 
   // Nodes
@@ -60,14 +60,14 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
 
   nodeG.append('circle')
     .attr('r', 18)
-    .attr('fill', '#3b82f6')
-    .attr('stroke', '#fff')
+    .style('fill', '#3b82f6')
+    .style('stroke', 'var(--viz-node-stroke)')
     .attr('stroke-width', 2);
 
   nodeG.append('text')
     .text((d: any) => d.data.label)
     .attr('font-size', '11px')
-    .attr('fill', '#1f2937')
+    .style('fill', 'var(--text-primary)')
     .attr('text-anchor', 'middle')
     .attr('dy', 32);
 }
