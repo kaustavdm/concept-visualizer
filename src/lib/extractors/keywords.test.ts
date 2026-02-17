@@ -9,7 +9,7 @@ describe('RAKEExtractor', () => {
   });
 
   it('should return a valid VisualizationSchema', async () => {
-    const text = 'Machine learning uses neural networks. Neural networks process data. Data drives decisions.';
+    const text = 'Machine learning is based on neural networks. Neural networks are used for data analysis. Data analysis helps in making decisions.';
     const result = await extractor.extract(text);
 
     expect(result.type).toBe('graph');
