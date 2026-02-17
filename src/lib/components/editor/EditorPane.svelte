@@ -1,4 +1,5 @@
 <script lang="ts">
+  import type { Snippet } from 'svelte';
   import ConceptDetails from './ConceptDetails.svelte';
   import TextEditor from './TextEditor.svelte';
   import ExportMenu from '$lib/components/export/ExportMenu.svelte';
@@ -13,9 +14,24 @@
     onTextChange: (text: string) => void;
     onVisualize: () => void;
     onAutoSendToggle: (enabled: boolean) => void;
+    focusedNodeId?: string | null;
+    zoomLevel?: number;
+    embeddedControls?: Snippet;
   }
 
-  let { text, visualization, loading, autoSend, file, onTextChange, onVisualize, onAutoSendToggle }: Props = $props();
+  let {
+    text,
+    visualization,
+    loading,
+    autoSend,
+    file,
+    onTextChange,
+    onVisualize,
+    onAutoSendToggle,
+    focusedNodeId = null,
+    zoomLevel = 1,
+    embeddedControls
+  }: Props = $props();
 </script>
 
 <div class="flex flex-col h-full">
@@ -24,7 +40,11 @@
     <ExportMenu {file} />
   </div>
 
-  <ConceptDetails {visualization} />
+  <ConceptDetails {visualization} {focusedNodeId} {zoomLevel} />
+
+  {#if embeddedControls}
+    {@render embeddedControls()}
+  {/if}
 
   <TextEditor
     {text}

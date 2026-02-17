@@ -5,9 +5,10 @@
     sidebar?: Snippet;
     main: Snippet;
     editor: Snippet;
+    dock?: Snippet;
   }
 
-  let { sidebar, main, editor }: Props = $props();
+  let { sidebar, main, editor, dock }: Props = $props();
 </script>
 
 <div class="flex h-screen w-screen overflow-hidden bg-gray-50 text-gray-900">
@@ -22,9 +23,14 @@
     </aside>
   {/if}
 
-  <main class="flex-1 min-w-0 overflow-hidden">
-    {@render main()}
-  </main>
+  <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
+    <main class="flex-1 min-w-0 overflow-hidden relative">
+      {@render main()}
+    </main>
+    {#if dock}
+      {@render dock()}
+    {/if}
+  </div>
 
   <aside class="w-[420px] flex-shrink-0 border-l border-gray-200 bg-white overflow-y-auto flex flex-col">
     {@render editor()}

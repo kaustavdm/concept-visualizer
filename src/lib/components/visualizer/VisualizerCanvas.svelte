@@ -7,9 +7,10 @@
     visualization: VisualizationSchema | null;
     error: string | null;
     loading: boolean;
+    onNodeClick?: (nodeId: string) => void;
   }
 
-  let { visualization, error, loading }: Props = $props();
+  let { visualization, error, loading, onNodeClick }: Props = $props();
 
   let svgEl: SVGSVGElement;
   let containerEl: HTMLDivElement;
@@ -20,6 +21,20 @@
     svgEl.setAttribute('width', String(rect.width));
     svgEl.setAttribute('height', String(rect.height));
     renderVisualization(svgEl, visualization);
+
+    // Attach click handlers to nodes after rendering
+    if (onNodeClick) {
+      const nodes = svgEl.querySelectorAll('circle');
+      nodes.forEach((circle) => {
+        circle.style.cursor = 'pointer';
+        circle.addEventListener('click', (e) => {
+          const data = (circle as any).__data__;
+          if (data?.id) {
+            onNodeClick(data.id);
+          }
+        });
+      });
+    }
   }
 
   $effect(() => {
@@ -39,7 +54,7 @@
   {#if loading}
     <div class="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
       <div class="flex items-center gap-2 text-gray-500">
-        <div class="w-5 h-5 border-2 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+        <div class="w-5 h-5 border-2 border-gray-300 rounded-full animate-spin" style="border-top-color: var(--accent)"></div>
         <span class="text-sm">Generating visualization...</span>
       </div>
     </div>
