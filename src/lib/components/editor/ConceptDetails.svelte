@@ -3,24 +3,68 @@
 
   interface Props {
     visualization: VisualizationSchema | null;
+    focusedNodeId?: string | null;
+    zoomLevel?: number;
   }
 
-  let { visualization }: Props = $props();
+  let { visualization, focusedNodeId = null, zoomLevel = 1 }: Props = $props();
+
+  // Find the focused node and its connections
+  const focusedNode = $derived(
+    visualization?.nodes.find(n => n.id === focusedNodeId) ?? null
+  );
+
+  const connectedNodeIds = $derived.by(() => {
+    if (!visualization || !focusedNodeId) return new Set<string>();
+    const ids = new Set<string>();
+    for (const edge of visualization.edges) {
+      if (edge.source === focusedNodeId) ids.add(edge.target);
+      if (edge.target === focusedNodeId) ids.add(edge.source);
+    }
+    return ids;
+  });
+
+  const filteredRelationships = $derived.by(() => {
+    if (!visualization) return [];
+    if (!focusedNodeId) return visualization.metadata.relationships;
+    // Show relationships mentioning the focused node's label
+    const label = focusedNode?.label?.toLowerCase() ?? '';
+    return visualization.metadata.relationships.filter(
+      r => r.toLowerCase().includes(label)
+    );
+  });
+
+  // At very low zoom, show minimal info
+  const isOverview = $derived(zoomLevel < 0.6);
 </script>
 
 {#if visualization}
-  <div class="border-b border-gray-200 p-4 space-y-3">
+  <div class="border-b p-4 space-y-3" style="border-color: var(--glass-border)">
     <div>
-      <h2 class="font-semibold text-sm text-gray-900">{visualization.title}</h2>
-      <p class="text-xs text-gray-500 mt-0.5">{visualization.description}</p>
+      <h2 class="font-semibold text-sm" style="font-family: var(--font-main)">
+        {focusedNode ? focusedNode.label : visualization.title}
+      </h2>
+      <p class="text-xs text-gray-500 mt-0.5">
+        {focusedNode?.details ?? visualization.description}
+      </p>
     </div>
 
-    {#if visualization.metadata.concepts.length > 0}
+    {#if !isOverview && visualization.metadata.concepts.length > 0}
       <div>
         <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Concepts</h3>
         <div class="flex flex-wrap gap-1.5">
           {#each visualization.metadata.concepts as concept}
-            <span class="inline-block px-2 py-0.5 text-xs rounded-full bg-blue-100 text-blue-800">
+            {@const isFocused = focusedNode?.label === concept}
+            {@const isConnected = !focusedNodeId || isFocused ||
+              visualization.nodes.some(n => n.label === concept && connectedNodeIds.has(n.id))}
+            <span
+              class="inline-block px-2 py-0.5 text-xs rounded-full transition-opacity duration-200"
+              style="
+                background: {isFocused ? 'var(--accent)' : 'var(--accent-light)'};
+                color: {isFocused ? 'white' : 'var(--accent-text)'};
+                opacity: {isConnected ? 1 : 0.3};
+              "
+            >
               {concept}
             </span>
           {/each}
@@ -28,15 +72,19 @@
       </div>
     {/if}
 
-    {#if visualization.metadata.relationships.length > 0}
+    {#if !isOverview && filteredRelationships.length > 0}
       <div>
         <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Relationships</h3>
         <ul class="space-y-0.5">
-          {#each visualization.metadata.relationships as rel}
+          {#each filteredRelationships as rel}
             <li class="text-xs text-gray-600">{rel}</li>
           {/each}
         </ul>
       </div>
+    {/if}
+
+    {#if isOverview}
+      <p class="text-xs text-gray-400 italic">Zoom in to see details</p>
     {/if}
   </div>
 {/if}
