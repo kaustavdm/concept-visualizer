@@ -29,7 +29,11 @@ function createVisualizationStore() {
   }
 
   function setVizType(type: VisualizationType) {
-    update(s => ({ ...s, vizType: type }));
+    update(s => ({
+      ...s,
+      vizType: type,
+      current: s.current ? { ...s.current, type } : null
+    }));
   }
 
   function clear() {

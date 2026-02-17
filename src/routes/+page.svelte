@@ -33,6 +33,11 @@
   let exportMenuOpen = $state(false);
   let autoSend = $derived(activeFile?.settings.autoSend ?? false);
 
+  // Pan command state for canvas
+  let panTick = $state(0);
+  let panDx = $state(0);
+  let panDy = $state(0);
+
   // Engine toast state
   let engineToast = $state('');
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -114,18 +119,23 @@
         break;
       case 'toggle_auto_send':
         if (activeFile) {
-          const newAutoSend = !activeFile.settings.autoSend;
-          filesStore.updateText(activeFile.id, activeFile.text);
+          filesStore.updateSettings(activeFile.id, { autoSend: !activeFile.settings.autoSend });
         }
         break;
       case 'deselect':
         focusStore.clear();
         break;
       case 'pan_up':
+        panDx = 0; panDy = 1; panTick++;
+        break;
       case 'pan_down':
+        panDx = 0; panDy = -1; panTick++;
+        break;
       case 'pan_left':
+        panDx = 1; panDy = 0; panTick++;
+        break;
       case 'pan_right':
-        // Pan actions could be handled by D3 zoom transform if needed
+        panDx = -1; panDy = 0; panTick++;
         break;
     }
   }
@@ -147,9 +157,6 @@
 
     controlPlacement = $settingsStore.controlPlacement ?? 'hud';
 
-    // Set theme data attribute
-    document.body.setAttribute('data-theme', $settingsStore.theme);
-
     // Set initial viz type
     if ($vizStore.vizType) {
       document.body.setAttribute('data-viz-type', $vizStore.vizType);
@@ -165,13 +172,6 @@
     return () => {
       kbController?.detach();
     };
-  });
-
-  // React to settings changes for theme
-  $effect(() => {
-    if ($settingsStore.theme) {
-      document.body.setAttribute('data-theme', $settingsStore.theme);
-    }
   });
 
   // React to viz type changes
@@ -258,6 +258,9 @@
       visualization={$vizStore.current}
       error={$vizStore.error}
       loading={$vizStore.loading}
+      {panTick}
+      {panDx}
+      {panDy}
       onNodeClick={handleNodeClick}
     />
     {#if controlPlacement === 'hud'}
@@ -296,7 +299,7 @@
       onVisualize={handleVisualize}
       onAutoSendToggle={(enabled) => {
         if (activeFile) {
-          filesStore.updateText(activeFile.id, activeFile.text);
+          filesStore.updateSettings(activeFile.id, { autoSend: enabled });
         }
       }}
       focusedNodeId={$focusStore.focusedNodeId}

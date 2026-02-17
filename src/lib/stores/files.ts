@@ -80,6 +80,20 @@ function createFilesStore() {
     }));
   }
 
+  async function updateSettings(id: string, settings: Partial<ConceptFile['settings']>) {
+    const now = new Date();
+    await db.files.where('id').equals(id).modify((file: ConceptFile) => {
+      Object.assign(file.settings, settings);
+      file.updatedAt = now;
+    });
+    update(s => ({
+      ...s,
+      files: s.files.map(f =>
+        f.id === id ? { ...f, settings: { ...f.settings, ...settings }, updatedAt: now } : f
+      )
+    }));
+  }
+
   function setActive(id: string) {
     update(s => ({ ...s, activeFileId: id }));
   }
@@ -92,6 +106,7 @@ function createFilesStore() {
     rename,
     updateText,
     updateVisualization,
+    updateSettings,
     setActive
   };
 }
