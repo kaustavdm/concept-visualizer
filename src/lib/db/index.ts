@@ -11,6 +11,12 @@ class ConceptDB extends Dexie {
       files: 'id, title, updatedAt',
       settings: 'id'
     });
+    // Version 2: AppSettings gains extractionEngine + controlPlacement
+    // No index changes needed; Dexie stores schemaless objects
+    this.version(2).stores({
+      files: 'id, title, updatedAt',
+      settings: 'id'
+    });
   }
 }
 

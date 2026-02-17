@@ -6,16 +6,20 @@
   let endpoint = $state('');
   let model = $state('');
   let theme = $state<'light' | 'dark'>('light');
+  let controlPlacement = $state<'hud' | 'dock' | 'embedded'>('hud');
+  let extractionEngine = $state<'llm' | 'nlp' | 'keywords' | 'semantic'>('llm');
 
   onMount(async () => {
     await settingsStore.init();
     endpoint = $settingsStore.llmEndpoint;
     model = $settingsStore.llmModel;
     theme = $settingsStore.theme;
+    controlPlacement = $settingsStore.controlPlacement;
+    extractionEngine = $settingsStore.extractionEngine;
   });
 
   async function save() {
-    await settingsStore.update({ llmEndpoint: endpoint, llmModel: model, theme });
+    await settingsStore.update({ llmEndpoint: endpoint, llmModel: model, theme, controlPlacement, extractionEngine });
     goto('/');
   }
 </script>
@@ -30,7 +34,8 @@
         id="endpoint"
         type="url"
         bind:value={endpoint}
-        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:border-transparent"
+        style="--tw-ring-color: var(--accent)"
         placeholder="http://localhost:11434/v1"
       />
       <p class="text-xs text-gray-400 mt-1">OpenAI-compatible API endpoint</p>
@@ -42,7 +47,8 @@
         id="model"
         type="text"
         bind:value={model}
-        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:border-transparent"
+        style="--tw-ring-color: var(--accent)"
         placeholder="llama3.2"
       />
     </div>
@@ -52,15 +58,50 @@
       <select
         id="theme"
         bind:value={theme}
-        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:border-transparent"
+        style="--tw-ring-color: var(--accent)"
       >
         <option value="light">Light</option>
         <option value="dark">Dark</option>
       </select>
     </div>
 
+    <div>
+      <label for="placement" class="block text-sm font-medium text-gray-700 mb-1">Control Placement</label>
+      <select
+        id="placement"
+        bind:value={controlPlacement}
+        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:border-transparent"
+        style="--tw-ring-color: var(--accent)"
+      >
+        <option value="hud">Floating HUD</option>
+        <option value="dock">Bottom Dock</option>
+        <option value="embedded">Embedded in Editor</option>
+      </select>
+    </div>
+
+    <div>
+      <label for="engine" class="block text-sm font-medium text-gray-700 mb-1">Extraction Engine</label>
+      <select
+        id="engine"
+        bind:value={extractionEngine}
+        class="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:ring-2 focus:border-transparent"
+        style="--tw-ring-color: var(--accent)"
+      >
+        <option value="llm">LLM (requires running server)</option>
+        <option value="nlp">NLP (compromise.js)</option>
+        <option value="keywords">Keywords (RAKE)</option>
+        <option value="semantic">Semantic (TF.js - large download)</option>
+      </select>
+      <p class="text-xs text-gray-400 mt-1">NLP and Keywords work offline. Semantic requires ~30MB model download.</p>
+    </div>
+
     <div class="flex gap-3 pt-2">
-      <button type="submit" class="px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700">
+      <button
+        type="submit"
+        class="px-4 py-2 text-sm font-medium rounded-lg text-white transition-colors"
+        style="background: var(--accent)"
+      >
         Save
       </button>
       <a href="/" class="px-4 py-2 text-sm font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50">

@@ -45,11 +45,15 @@ export interface AppSettings {
   llmEndpoint: string;
   llmModel: string;
   theme: 'light' | 'dark';
+  controlPlacement: 'hud' | 'dock' | 'embedded';
+  extractionEngine: 'llm' | 'nlp' | 'keywords' | 'semantic';
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
   id: 'app-settings',
   llmEndpoint: 'http://localhost:11434/v1',
   llmModel: 'llama3.2',
-  theme: 'light'
+  theme: 'light',
+  controlPlacement: 'hud',
+  extractionEngine: 'llm'
 };
