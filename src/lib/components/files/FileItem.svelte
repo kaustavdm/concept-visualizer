@@ -33,15 +33,18 @@
 </script>
 
 <button
-  class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors group
-    {active ? '' : 'text-gray-700 hover:bg-gray-100'}"
-  style={active ? 'background: var(--accent-light); color: var(--accent-text)' : ''}
+  class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors group"
+  style={active
+    ? `background: var(--accent-light); color: var(--accent-text)`
+    : `color: var(--text-secondary)`}
+  onmouseenter={(e) => { if (!active) e.currentTarget.style.background = 'var(--surface-hover)'; }}
+  onmouseleave={(e) => { if (!active) e.currentTarget.style.background = ''; }}
   onclick={onclick}
 >
   {#if editing}
     <input
-      class="w-full bg-white border rounded px-1 py-0.5 text-sm focus:outline-none"
-      style="border-color: var(--accent)"
+      class="w-full rounded px-1 py-0.5 text-sm focus:outline-none"
+      style="background: var(--input-bg); border: 1px solid var(--accent); color: var(--text-primary)"
       bind:value={editTitle}
       onblur={finishEditing}
       onkeydown={handleKeydown}
@@ -51,15 +54,15 @@
     <div class="flex items-center justify-between">
       <span class="truncate">{file.title}</span>
       <span class="hidden group-hover:flex gap-1">
-        <button onclick={startEditing} class="text-gray-400 hover:text-gray-600 text-xs" title="Rename">
+        <button onclick={startEditing} class="text-xs" style="color: var(--text-muted)" title="Rename">
           &#9998;
         </button>
-        <button onclick={(e) => { e.stopPropagation(); ondelete(); }} class="text-gray-400 hover:text-red-500 text-xs" title="Delete">
+        <button onclick={(e) => { e.stopPropagation(); ondelete(); }} class="text-xs hover:text-red-500" style="color: var(--text-muted)" title="Delete">
           &times;
         </button>
       </span>
     </div>
-    <span class="text-[10px] text-gray-400">
+    <span class="text-[10px]" style="color: var(--text-muted)">
       {file.updatedAt.toLocaleDateString()}
     </span>
   {/if}

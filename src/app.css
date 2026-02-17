@@ -8,6 +8,35 @@
   --accent-light: #eff6ff;
   --accent-text: #1e40af;
 
+  /* Surface colors */
+  --surface-bg: #ffffff;
+  --surface-secondary: #f9fafb;
+  --surface-hover: #f3f4f6;
+  --canvas-bg: #f9fafb;
+
+  /* Text colors */
+  --text-primary: #111827;
+  --text-secondary: #334155;
+  --text-tertiary: #475569;
+  --text-muted: #64748b;
+
+  /* Border colors */
+  --border: #d1d5db;
+  --border-light: #e5e7eb;
+
+  /* Input */
+  --input-bg: #ffffff;
+  --input-border: #b0b8c4;
+
+  /* Visualization */
+  --viz-node-stroke: #ffffff;
+  --viz-edge: #94a3b8;
+  --viz-edge-label: #64748b;
+  --viz-flowchart-fill: #dbeafe;
+  --viz-flowchart-fill-decision: #fef3c7;
+  --viz-flowchart-stroke: #3b82f6;
+  --viz-flowchart-stroke-decision: #d97706;
+
   /* Glass surfaces */
   --glass-bg: rgba(255, 255, 255, 0.5);
   --glass-border: rgba(255, 255, 255, 0.2);
@@ -47,11 +76,52 @@
 
 /* Dark mode */
 [data-theme="dark"] {
+  --surface-bg: #111827;
+  --surface-secondary: #1f2937;
+  --surface-hover: #374151;
+  --canvas-bg: #030712;
+
+  --text-primary: #f1f5f9;
+  --text-secondary: #cbd5e1;
+  --text-tertiary: #94a3b8;
+  --text-muted: #64748b;
+
+  --border: #334155;
+  --border-light: #1e293b;
+
+  --input-bg: #1e293b;
+  --input-border: #475569;
+
+  --accent-light: rgba(59, 130, 246, 0.15);
+  --accent-text: #93c5fd;
+
+  --viz-node-stroke: #1e293b;
+  --viz-edge: #64748b;
+  --viz-edge-label: #94a3b8;
+  --viz-flowchart-fill: rgba(59, 130, 246, 0.15);
+  --viz-flowchart-fill-decision: rgba(245, 158, 11, 0.15);
+  --viz-flowchart-stroke: #60a5fa;
+  --viz-flowchart-stroke-decision: #fbbf24;
+
   --glass-bg: rgba(0, 0, 0, 0.4);
   --glass-border: rgba(255, 255, 255, 0.1);
   --glass-bg-hover: rgba(0, 0, 0, 0.5);
   --pad-btn-bg: rgba(255, 255, 255, 0.1);
   --pad-btn-bg-hover: rgba(255, 255, 255, 0.2);
+}
+
+/* Dark mode accent overrides per viz type */
+[data-theme="dark"][data-viz-type="tree"] {
+  --accent-light: rgba(16, 185, 129, 0.15);
+  --accent-text: #6ee7b7;
+}
+[data-theme="dark"][data-viz-type="flowchart"] {
+  --accent-light: rgba(245, 158, 11, 0.15);
+  --accent-text: #fcd34d;
+}
+[data-theme="dark"][data-viz-type="hierarchy"] {
+  --accent-light: rgba(139, 92, 246, 0.15);
+  --accent-text: #c4b5fd;
 }
 
 body {

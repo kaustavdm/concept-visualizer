@@ -101,7 +101,8 @@
 {:else if placement === 'embedded'}
   <!-- Embedded in editor pane -->
   <div
-    class="flex items-center justify-between px-4 py-3 border-b border-gray-200"
+    class="flex items-center justify-between px-4 py-3"
+    style="border-bottom: 1px solid var(--border)"
     onmouseenter={() => showKeyHints = true}
     onmouseleave={() => showKeyHints = false}
     role="toolbar"

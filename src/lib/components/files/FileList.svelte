@@ -15,8 +15,8 @@
 </script>
 
 <div class="flex flex-col h-full">
-  <div class="flex items-center justify-between p-3 border-b border-gray-200">
-    <h2 class="text-xs font-semibold uppercase tracking-wide text-gray-500">Files</h2>
+  <div class="flex items-center justify-between p-3" style="border-bottom: 1px solid var(--border)">
+    <h2 class="text-xs font-semibold uppercase tracking-wide" style="color: var(--text-tertiary)">Files</h2>
     <button
       onclick={onCreate}
       class="text-sm font-medium"
@@ -39,7 +39,7 @@
     {/each}
 
     {#if files.length === 0}
-      <p class="text-xs text-gray-400 text-center py-4">No files yet</p>
+      <p class="text-xs text-center py-4" style="color: var(--text-muted)">No files yet</p>
     {/if}
   </div>
 </div>

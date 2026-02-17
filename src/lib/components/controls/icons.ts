@@ -1,10 +1,10 @@
 // Each icon is an SVG path string for a 24x24 viewBox
 export const icons: Record<string, string> = {
-  // Nav cluster
-  focus_up: 'M12 4l-6 6h4v8h4v-8h4l-6-6z',
-  focus_down: 'M12 20l6-6h-4V6h-4v8H6l6 6z',
-  focus_left: 'M4 12l6-6v4h8v4h-8v4l-6-6z',
-  focus_right: 'M20 12l-6-6v4H6v4h8v4l6-6z',
+  // Nav cluster (pan = move viewport)
+  pan_up: 'M12 4l-6 6h4v8h4v-8h4l-6-6z',
+  pan_down: 'M12 20l6-6h-4V6h-4v8H6l6 6z',
+  pan_left: 'M4 12l6-6v4h8v4h-8v4l-6-6z',
+  pan_right: 'M20 12l-6-6v4H6v4h8v4l6-6z',
   fit_to_screen: 'M3 3h6v2H5v4H3V3zm12 0h6v6h-2V5h-4V3zM3 15h2v4h4v2H3v-6zm18 0v6h-6v-2h4v-4h2z',
 
   // Zoom pair
@@ -29,10 +29,10 @@ export const icons: Record<string, string> = {
 
 // Key label for each action
 export const keyLabels: Record<string, string> = {
-  focus_up: 'W',
-  focus_down: 'S',
-  focus_left: 'A',
-  focus_right: 'D',
+  pan_up: 'W',
+  pan_down: 'S',
+  pan_left: 'A',
+  pan_right: 'D',
   fit_to_screen: '\u2423',
   zoom_in: 'Z',
   zoom_out: 'X',

@@ -42,7 +42,7 @@
     width={size * 0.5}
     height={size * 0.5}
     viewBox="0 0 24 24"
-    fill={active ? 'var(--accent)' : '#4b5563'}
+    fill={active ? 'var(--accent)' : 'var(--text-tertiary)'}
   >
     <path d={iconPath} />
   </svg>
@@ -50,7 +50,7 @@
   {#if showKeyHint && keyLabel}
     <span
       class="absolute -bottom-4 left-1/2 -translate-x-1/2 text-[10px] font-medium opacity-60"
-      style="color: {active ? 'var(--accent)' : '#6b7280'}"
+      style="color: {active ? 'var(--accent)' : 'var(--text-tertiary)'}"
     >
       {keyLabel}
     </span>

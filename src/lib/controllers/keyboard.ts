@@ -9,15 +9,15 @@ export type PadAction =
 const KEY_MAP: Record<string, PadAction> = {
   'z': 'zoom_in',
   'x': 'zoom_out',
-  'w': 'focus_up',
-  'a': 'focus_left',
-  's': 'focus_down',
-  'd': 'focus_right',
+  'w': 'pan_up',
+  'a': 'pan_left',
+  's': 'pan_down',
+  'd': 'pan_right',
   ' ': 'fit_to_screen',
-  'ArrowUp': 'pan_up',
-  'ArrowDown': 'pan_down',
-  'ArrowLeft': 'pan_left',
-  'ArrowRight': 'pan_right',
+  'ArrowUp': 'focus_up',
+  'ArrowDown': 'focus_down',
+  'ArrowLeft': 'focus_left',
+  'ArrowRight': 'focus_right',
   'Enter': 'visualize',
   'Tab': 'cycle_viz_type',
   'p': 'export',
@@ -63,7 +63,7 @@ export function createKeyboardController(options: KeyboardControllerOptions) {
     if (options.isTextInputFocused() && !ALWAYS_ACTIVE.has(key)) return;
 
     // Prevent default for mapped keys
-    if (key === 'Tab' || key === ' ') e.preventDefault();
+    if (key === 'Tab' || key === ' ' || key.startsWith('Arrow')) e.preventDefault();
 
     // For discrete actions, don't repeat on held key
     if (DISCRETE_ACTIONS.has(action) && heldKeys.has(key)) return;

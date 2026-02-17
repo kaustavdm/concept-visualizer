@@ -35,8 +35,8 @@
 
 <div class="flex-1 flex flex-col p-4 gap-3">
   <textarea
-    class="flex-1 w-full resize-none rounded-lg border border-gray-300 p-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent placeholder:text-gray-400"
-    style="--tw-ring-color: var(--accent)"
+    class="flex-1 w-full resize-none rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:border-transparent"
+    style="background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); --tw-ring-color: var(--accent)"
     placeholder="Describe a concept to visualize..."
     value={text}
     oninput={handleInput}
@@ -45,13 +45,13 @@
   ></textarea>
 
   <div class="flex items-center justify-between">
-    <label class="flex items-center gap-2 text-xs text-gray-500 cursor-pointer">
+    <label class="flex items-center gap-2 text-xs cursor-pointer" style="color: var(--text-tertiary)">
       <input
         type="checkbox"
         checked={autoSend}
         onchange={(e) => onAutoSendToggle((e.target as HTMLInputElement).checked)}
-        class="rounded border-gray-300"
-        style="accent-color: var(--accent)"
+        class="rounded"
+        style="accent-color: var(--accent); border-color: var(--input-border)"
       />
       Auto-visualize
     </label>

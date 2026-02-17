@@ -36,12 +36,12 @@ describe('KeyboardController', () => {
     expect(actions).toContain('zoom_out');
   });
 
-  it('should map w/a/s/d to focus navigation', () => {
+  it('should map w/a/s/d to pan', () => {
     press('w');
     press('a');
     press('s');
     press('d');
-    expect(actions).toEqual(['focus_up', 'focus_left', 'focus_down', 'focus_right']);
+    expect(actions).toEqual(['pan_up', 'pan_left', 'pan_down', 'pan_right']);
   });
 
   it('should map Space to fit_to_screen', () => {
@@ -74,12 +74,12 @@ describe('KeyboardController', () => {
     expect(actions).toContain('deselect');
   });
 
-  it('should map arrow keys to pan', () => {
+  it('should map arrow keys to focus navigation', () => {
     press('ArrowUp');
     press('ArrowDown');
     press('ArrowLeft');
     press('ArrowRight');
-    expect(actions).toEqual(['pan_up', 'pan_down', 'pan_left', 'pan_right']);
+    expect(actions).toEqual(['focus_up', 'focus_down', 'focus_left', 'focus_right']);
   });
 
   it('should not fire when text input is focused', () => {

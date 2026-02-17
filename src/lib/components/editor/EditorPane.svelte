@@ -35,8 +35,8 @@
 </script>
 
 <div class="flex flex-col h-full">
-  <div class="flex items-center justify-between p-3 border-b border-gray-200">
-    <h2 class="text-sm font-medium text-gray-700 truncate">{file?.title ?? 'No file selected'}</h2>
+  <div class="flex items-center justify-between p-3" style="border-bottom: 1px solid var(--border)">
+    <h2 class="text-sm font-medium truncate" style="color: var(--text-secondary)">{file?.title ?? 'No file selected'}</h2>
     <ExportMenu {file} />
   </div>
 

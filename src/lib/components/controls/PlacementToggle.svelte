@@ -23,7 +23,7 @@
     onclick={() => open = !open}
     title="Change control placement"
   >
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="#6b7280">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="var(--text-tertiary)">
       <path d="M3 3h8v8H3V3zm0 10h8v8H3v-8zm10-10h8v8h-8V3zm0 10h8v8h-8v-8z" />
     </svg>
   </button>
@@ -35,7 +35,7 @@
         <button
           class="w-full text-left px-3 py-1 text-xs transition-colors
             {current === mode.value ? 'font-medium' : ''}"
-          style="color: {current === mode.value ? 'var(--accent)' : '#6b7280'}"
+          style="color: {current === mode.value ? 'var(--accent)' : 'var(--text-tertiary)'}"
           onclick={() => { onChange(mode.value); open = false; }}
         >
           {mode.label}

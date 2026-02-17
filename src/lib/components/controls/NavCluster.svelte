@@ -14,11 +14,11 @@
 <div class="relative w-[130px] h-[130px]">
   <!-- W - top -->
   <div class="absolute top-0 left-1/2 -translate-x-1/2">
-    <PadButton action="focus_up" active={activeActions.has('focus_up')} onclick={() => onAction('focus_up')} showKeyHint={showKeyHints} />
+    <PadButton action="pan_up" active={activeActions.has('pan_up')} onclick={() => onAction('pan_up')} showKeyHint={showKeyHints} />
   </div>
   <!-- A - left -->
   <div class="absolute top-1/2 left-0 -translate-y-1/2">
-    <PadButton action="focus_left" active={activeActions.has('focus_left')} onclick={() => onAction('focus_left')} showKeyHint={showKeyHints} />
+    <PadButton action="pan_left" active={activeActions.has('pan_left')} onclick={() => onAction('pan_left')} showKeyHint={showKeyHints} />
   </div>
   <!-- Space - center -->
   <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
@@ -26,10 +26,10 @@
   </div>
   <!-- D - right -->
   <div class="absolute top-1/2 right-0 -translate-y-1/2">
-    <PadButton action="focus_right" active={activeActions.has('focus_right')} onclick={() => onAction('focus_right')} showKeyHint={showKeyHints} />
+    <PadButton action="pan_right" active={activeActions.has('pan_right')} onclick={() => onAction('pan_right')} showKeyHint={showKeyHints} />
   </div>
   <!-- S - bottom -->
   <div class="absolute bottom-0 left-1/2 -translate-x-1/2">
-    <PadButton action="focus_down" active={activeActions.has('focus_down')} onclick={() => onAction('focus_down')} showKeyHint={showKeyHints} />
+    <PadButton action="pan_down" active={activeActions.has('pan_down')} onclick={() => onAction('pan_down')} showKeyHint={showKeyHints} />
   </div>
 </div>

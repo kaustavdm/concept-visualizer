@@ -39,19 +39,19 @@
 </script>
 
 {#if visualization}
-  <div class="border-b p-4 space-y-3" style="border-color: var(--glass-border)">
+  <div class="p-4 space-y-3" style="border-bottom: 1px solid var(--border)">
     <div>
-      <h2 class="font-semibold text-sm" style="font-family: var(--font-main)">
+      <h2 class="font-semibold text-sm" style="font-family: var(--font-main); color: var(--text-primary)">
         {focusedNode ? focusedNode.label : visualization.title}
       </h2>
-      <p class="text-xs text-gray-500 mt-0.5">
+      <p class="text-xs mt-0.5" style="color: var(--text-tertiary)">
         {focusedNode?.details ?? visualization.description}
       </p>
     </div>
 
     {#if !isOverview && visualization.metadata.concepts.length > 0}
       <div>
-        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Concepts</h3>
+        <h3 class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--text-tertiary)">Concepts</h3>
         <div class="flex flex-wrap gap-1.5">
           {#each visualization.metadata.concepts as concept}
             {@const isFocused = focusedNode?.label === concept}
@@ -74,17 +74,17 @@
 
     {#if !isOverview && filteredRelationships.length > 0}
       <div>
-        <h3 class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Relationships</h3>
+        <h3 class="text-xs font-medium uppercase tracking-wide mb-1" style="color: var(--text-tertiary)">Relationships</h3>
         <ul class="space-y-0.5">
           {#each filteredRelationships as rel}
-            <li class="text-xs text-gray-600">{rel}</li>
+            <li class="text-xs" style="color: var(--text-secondary)">{rel}</li>
           {/each}
         </ul>
       </div>
     {/if}
 
     {#if isOverview}
-      <p class="text-xs text-gray-400 italic">Zoom in to see details</p>
+      <p class="text-xs italic" style="color: var(--text-muted)">Zoom in to see details</p>
     {/if}
   </div>
 {/if}

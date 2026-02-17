@@ -25,7 +25,10 @@
   <button
     onclick={() => open = !open}
     disabled={!file?.visualization}
-    class="px-3 py-1.5 text-xs font-medium rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    class="px-3 py-1.5 text-xs font-medium rounded-lg disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+    style="border: 1px solid var(--border); color: var(--text-tertiary)"
+    onmouseenter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+    onmouseleave={(e) => e.currentTarget.style.background = ''}
   >
     Export
   </button>
@@ -35,10 +38,22 @@
       class="absolute right-0 top-full mt-1 rounded-lg shadow-lg py-1 z-20 min-w-[140px]"
       style="background: var(--glass-bg); backdrop-filter: blur(16px); border: 1px solid var(--glass-border)"
     >
-      <button onclick={handlePdf} class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">
+      <button
+        onclick={handlePdf}
+        class="w-full text-left px-3 py-1.5 text-sm"
+        style="color: var(--text-primary)"
+        onmouseenter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+        onmouseleave={(e) => e.currentTarget.style.background = ''}
+      >
         PDF
       </button>
-      <button onclick={handleMarkdown} class="w-full text-left px-3 py-1.5 text-sm hover:bg-gray-50">
+      <button
+        onclick={handleMarkdown}
+        class="w-full text-left px-3 py-1.5 text-sm"
+        style="color: var(--text-primary)"
+        onmouseenter={(e) => e.currentTarget.style.background = 'var(--surface-hover)'}
+        onmouseleave={(e) => e.currentTarget.style.background = ''}
+      >
         Markdown + Images
       </button>
     </div>

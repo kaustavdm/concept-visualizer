@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import * as d3 from 'd3';
   import { renderVisualization } from './renderers';
   import type { VisualizationSchema } from '$lib/types';
 
@@ -7,13 +8,18 @@
     visualization: VisualizationSchema | null;
     error: string | null;
     loading: boolean;
+    panTick?: number;
+    panDx?: number;
+    panDy?: number;
     onNodeClick?: (nodeId: string) => void;
   }
 
-  let { visualization, error, loading, onNodeClick }: Props = $props();
+  let { visualization, error, loading, panTick = 0, panDx = 0, panDy = 0, onNodeClick }: Props = $props();
 
   let svgEl: SVGSVGElement;
   let containerEl: HTMLDivElement;
+
+  const PAN_STEP = 50;
 
   function render() {
     if (!svgEl || !visualization) return;
@@ -24,11 +30,14 @@
 
     // Attach click handlers to nodes after rendering
     if (onNodeClick) {
-      const nodes = svgEl.querySelectorAll('circle');
-      nodes.forEach((circle) => {
-        circle.style.cursor = 'pointer';
-        circle.addEventListener('click', (e) => {
-          const data = (circle as any).__data__;
+      // Support both circle (graph/tree/hierarchy) and rect (flowchart) node elements
+      const nodeElements = svgEl.querySelectorAll('circle, g.node rect');
+      nodeElements.forEach((el) => {
+        el.setAttribute('style', (el.getAttribute('style') || '') + ';cursor:pointer');
+        el.addEventListener('click', (e) => {
+          // For g.node children, data is on the parent g
+          const dataEl = el.closest('g.node') || el;
+          const data = (dataEl as any).__data__;
           if (data?.id) {
             onNodeClick(data.id);
           }
@@ -36,6 +45,23 @@
       });
     }
   }
+
+  function panBy(dx: number, dy: number) {
+    if (!svgEl) return;
+    const zoom = (svgEl as any).__d3Zoom;
+    if (zoom) {
+      zoom.translateBy(d3.select(svgEl), dx, dy);
+    }
+  }
+
+  // React to pan commands
+  let lastPanTick = 0;
+  $effect(() => {
+    if (panTick > lastPanTick) {
+      panBy(panDx * PAN_STEP, panDy * PAN_STEP);
+      lastPanTick = panTick;
+    }
+  });
 
   $effect(() => {
     if (visualization) render();
@@ -52,9 +78,9 @@
 
 <div bind:this={containerEl} class="w-full h-full relative">
   {#if loading}
-    <div class="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
-      <div class="flex items-center gap-2 text-gray-500">
-        <div class="w-5 h-5 border-2 border-gray-300 rounded-full animate-spin" style="border-top-color: var(--accent)"></div>
+    <div class="absolute inset-0 flex items-center justify-center z-10" style="background: color-mix(in srgb, var(--canvas-bg) 70%, transparent)">
+      <div class="flex items-center gap-2" style="color: var(--text-tertiary)">
+        <div class="w-5 h-5 border-2 rounded-full animate-spin" style="border-color: var(--border); border-top-color: var(--accent)"></div>
         <span class="text-sm">Generating visualization...</span>
       </div>
     </div>
@@ -64,14 +90,14 @@
     <div class="absolute inset-0 flex items-center justify-center">
       <div class="text-center max-w-md">
         <p class="text-red-500 text-sm font-medium">Visualization Error</p>
-        <p class="text-gray-500 text-xs mt-1">{error}</p>
+        <p class="text-xs mt-1" style="color: var(--text-tertiary)">{error}</p>
       </div>
     </div>
   {/if}
 
   {#if !visualization && !loading && !error}
     <div class="absolute inset-0 flex items-center justify-center">
-      <div class="text-center text-gray-400">
+      <div class="text-center" style="color: var(--text-muted)">
         <p class="text-lg font-light">Concept Visualizer</p>
         <p class="text-sm mt-1">Write a concept in the editor and click Visualize</p>
       </div>
