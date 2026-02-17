@@ -1,1 +1,59 @@
 @import 'tailwindcss';
+
+:root {
+  --font-main: 'Space Grotesk', system-ui, sans-serif;
+
+  /* Adaptive accent colors - default to graph (blue) */
+  --accent: #3b82f6;
+  --accent-light: #eff6ff;
+  --accent-text: #1e40af;
+
+  /* Glass surfaces */
+  --glass-bg: rgba(255, 255, 255, 0.5);
+  --glass-border: rgba(255, 255, 255, 0.2);
+  --glass-bg-hover: rgba(255, 255, 255, 0.6);
+
+  /* Pad button */
+  --pad-btn-bg: rgba(255, 255, 255, 0.3);
+  --pad-btn-bg-hover: rgba(255, 255, 255, 0.6);
+  --pad-btn-bg-active: rgba(59, 130, 246, 0.2);
+}
+
+/* Viz type accent overrides - applied via data attribute on body */
+[data-viz-type="graph"] {
+  --accent: #3b82f6;
+  --accent-light: #eff6ff;
+  --accent-text: #1e40af;
+  --pad-btn-bg-active: rgba(59, 130, 246, 0.2);
+}
+[data-viz-type="tree"] {
+  --accent: #10b981;
+  --accent-light: #ecfdf5;
+  --accent-text: #065f46;
+  --pad-btn-bg-active: rgba(16, 185, 129, 0.2);
+}
+[data-viz-type="flowchart"] {
+  --accent: #f59e0b;
+  --accent-light: #fffbeb;
+  --accent-text: #92400e;
+  --pad-btn-bg-active: rgba(245, 158, 11, 0.2);
+}
+[data-viz-type="hierarchy"] {
+  --accent: #8b5cf6;
+  --accent-light: #f5f3ff;
+  --accent-text: #5b21b6;
+  --pad-btn-bg-active: rgba(139, 92, 246, 0.2);
+}
+
+/* Dark mode */
+[data-theme="dark"] {
+  --glass-bg: rgba(0, 0, 0, 0.4);
+  --glass-border: rgba(255, 255, 255, 0.1);
+  --glass-bg-hover: rgba(0, 0, 0, 0.5);
+  --pad-btn-bg: rgba(255, 255, 255, 0.1);
+  --pad-btn-bg-hover: rgba(255, 255, 255, 0.2);
+}
+
+body {
+  font-family: var(--font-main);
+}
