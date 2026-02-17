@@ -10,7 +10,8 @@
   import { settingsStore } from '$lib/stores/settings';
   import { focusStore } from '$lib/stores/focus';
   import { createKeyboardController, type PadAction } from '$lib/controllers/keyboard';
-  import { generateVisualization } from '$lib/llm/client';
+  import { createExtractorRegistry } from '$lib/extractors/registry';
+  import type { ExtractionEngineId } from '$lib/extractors/types';
   import type { ConceptFile, VisualizationType } from '$lib/types';
   import type { PlacementMode } from '$lib/components/controls/PlacementToggle.svelte';
 
@@ -27,6 +28,20 @@
 
   // Track keyboard controller
   let kbController: ReturnType<typeof createKeyboardController> | null = null;
+
+  // Extractor registry for engine-based visualization
+  let registry = createExtractorRegistry({
+    endpoint: $settingsStore.llmEndpoint,
+    model: $settingsStore.llmModel
+  });
+
+  // Update LLM config when settings change
+  $effect(() => {
+    registry.updateLLMConfig({
+      endpoint: $settingsStore.llmEndpoint,
+      model: $settingsStore.llmModel
+    });
+  });
 
   function isTextInputFocused(): boolean {
     const el = document.activeElement;
@@ -155,10 +170,9 @@
 
     vizStore.setLoading();
     try {
-      const viz = await generateVisualization(activeFile.text, {
-        endpoint: $settingsStore.llmEndpoint,
-        model: $settingsStore.llmModel
-      });
+      const engineId = $settingsStore.extractionEngine as ExtractionEngineId;
+      const engine = registry.getEngine(engineId);
+      const viz = await engine.extract(activeFile.text);
       vizStore.setVisualization(viz);
       await filesStore.updateVisualization(activeFile.id, viz);
     } catch (err) {
