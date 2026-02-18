@@ -126,4 +126,5 @@
 
 body {
   font-family: var(--font-main);
+  background: var(--canvas-bg);
 }
