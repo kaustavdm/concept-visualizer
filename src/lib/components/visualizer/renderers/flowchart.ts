@@ -1,10 +1,11 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
+import { themeColor, edgeThickness, edgeOpacity, hexToRgba, truncate } from './utils';
 
-const NODE_WIDTH = 140;
-const NODE_HEIGHT = 50;
-const GAP_X = 60;
-const GAP_Y = 80;
+const NODE_WIDTH = 150;
+const NODE_HEIGHT = 44;
+const GAP_X = 70;
+const GAP_Y = 72;
 
 export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
@@ -28,13 +29,11 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
       const nodeId = queue.shift()!;
       if (visited.has(nodeId)) continue;
       visited.add(nodeId);
-
       const col = i - (levelSize - 1) / 2;
       positions.set(nodeId, {
         x: width / 2 + col * (NODE_WIDTH + GAP_X),
         y: 60 + row * (NODE_HEIGHT + GAP_Y)
       });
-
       schema.edges
         .filter(e => e.source === nodeId)
         .forEach(e => {
@@ -45,8 +44,6 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     }
     row++;
   }
-
-  // Place any unvisited nodes
   schema.nodes.forEach(n => {
     if (!positions.has(n.id)) {
       positions.set(n.id, { x: width / 2, y: 60 + row * (NODE_HEIGHT + GAP_Y) });
@@ -57,49 +54,53 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
   const g = svg.append('g');
 
   const zoom = d3.zoom<SVGSVGElement, unknown>()
-    .scaleExtent([0.3, 3])
+    .scaleExtent([0.2, 4])
     .on('zoom', (event) => g.attr('transform', event.transform));
   svg.call(zoom);
   (svgEl as any).__d3Zoom = zoom;
 
-  // Arrows
+  // Arrow marker
   svg.append('defs').append('marker')
-    .attr('id', 'arrowhead')
+    .attr('id', 'fc-arrow')
     .attr('viewBox', '0 -5 10 10')
-    .attr('refX', 10)
-    .attr('refY', 0)
-    .attr('markerWidth', 8)
-    .attr('markerHeight', 8)
+    .attr('refX', 10).attr('refY', 0)
+    .attr('markerWidth', 7).attr('markerHeight', 7)
     .attr('orient', 'auto')
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
     .style('fill', 'var(--viz-edge)');
 
-  // Edges
-  g.selectAll('line')
+  // Edges — cubic bezier curves with variable thickness
+  g.selectAll('path.fc-edge')
     .data(schema.edges)
-    .join('line')
-    .attr('x1', d => positions.get(d.source)?.x || 0)
-    .attr('y1', d => (positions.get(d.source)?.y || 0) + NODE_HEIGHT / 2)
-    .attr('x2', d => positions.get(d.target)?.x || 0)
-    .attr('y2', d => (positions.get(d.target)?.y || 0) - NODE_HEIGHT / 2)
+    .join('path')
+    .attr('class', 'fc-edge')
+    .attr('d', d => {
+      const s = positions.get(d.source) || { x: 0, y: 0 };
+      const t = positions.get(d.target) || { x: 0, y: 0 };
+      const my = (s.y + NODE_HEIGHT / 2 + t.y - NODE_HEIGHT / 2) / 2;
+      return `M${s.x},${s.y + NODE_HEIGHT / 2} C${s.x},${my} ${t.x},${my} ${t.x},${t.y - NODE_HEIGHT / 2}`;
+    })
+    .style('fill', 'none')
     .style('stroke', 'var(--viz-edge)')
-    .attr('stroke-width', 1.5)
-    .attr('marker-end', 'url(#arrowhead)');
+    .attr('stroke-width', d => edgeThickness(d.strength))
+    .style('opacity', d => edgeOpacity(d.strength))
+    .attr('stroke-dasharray', d => d.type === 'contrasts' ? '6,4' : null)
+    .attr('marker-end', 'url(#fc-arrow)');
 
-  // Edge labels
-  g.selectAll('text.edge-label')
-    .data(schema.edges)
+  // Edge labels (only for strong edges)
+  g.selectAll('text.fc-edge-label')
+    .data(schema.edges.filter(e => (e.strength ?? 0.5) > 0.5))
     .join('text')
-    .attr('class', 'edge-label')
+    .attr('class', 'fc-edge-label')
     .text(d => d.label || '')
     .attr('x', d => ((positions.get(d.source)?.x || 0) + (positions.get(d.target)?.x || 0)) / 2)
     .attr('y', d => ((positions.get(d.source)?.y || 0) + (positions.get(d.target)?.y || 0)) / 2)
-    .attr('font-size', '10px')
+    .attr('font-size', '9px')
     .style('fill', 'var(--viz-edge-label)')
     .attr('text-anchor', 'middle');
 
-  // Nodes
+  // Node groups
   const nodeG = g.selectAll('g.node')
     .data(schema.nodes)
     .join('g')
@@ -109,14 +110,17 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
       return `translate(${pos.x - NODE_WIDTH / 2},${pos.y - NODE_HEIGHT / 2})`;
     });
 
+  // Pill-shaped rects
   nodeG.append('rect')
     .attr('width', NODE_WIDTH)
     .attr('height', NODE_HEIGHT)
-    .attr('rx', d => d.type === 'decision' ? 0 : 8)
-    .style('fill', d => d.type === 'decision' ? 'var(--viz-flowchart-fill-decision)' : 'var(--viz-flowchart-fill)')
-    .style('stroke', d => d.type === 'decision' ? 'var(--viz-flowchart-stroke-decision)' : 'var(--viz-flowchart-stroke)')
+    .attr('rx', NODE_HEIGHT / 2)
+    .attr('ry', NODE_HEIGHT / 2)
+    .style('fill', d => hexToRgba(themeColor(d.theme, d.group), 0.82))
+    .style('stroke', d => themeColor(d.theme, d.group))
     .attr('stroke-width', 1.5);
 
+  // Label
   nodeG.append('text')
     .text(d => d.label)
     .attr('x', NODE_WIDTH / 2)
@@ -124,5 +128,16 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('text-anchor', 'middle')
     .attr('dominant-baseline', 'central')
     .attr('font-size', '12px')
+    .attr('font-weight', d => d.narrativeRole === 'central' ? '600' : '400')
     .style('fill', 'var(--text-primary)');
+
+  // Detail snippet below label for prominent nodes
+  nodeG.filter(d => !!d.details && (d.weight ?? 0) >= 0.6)
+    .append('text')
+    .text(d => truncate(d.details, 30))
+    .attr('x', NODE_WIDTH / 2)
+    .attr('y', NODE_HEIGHT / 2 + 10)
+    .attr('text-anchor', 'middle')
+    .attr('font-size', '8px')
+    .style('fill', 'var(--text-tertiary)');
 }
