@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { parseVisualizationResponse } from './parser';
+import { SYSTEM_PROMPT } from './prompts';
 
 const VALID_RESPONSE = JSON.stringify({
   type: 'graph',
@@ -50,5 +51,23 @@ describe('parseVisualizationResponse', () => {
       metadata: { concepts: [], relationships: [] }
     });
     expect(() => parseVisualizationResponse(bad)).toThrow();
+  });
+});
+
+describe('SYSTEM_PROMPT', () => {
+  it('requests the weight field', () => {
+    expect(SYSTEM_PROMPT).toContain('"weight"');
+  });
+
+  it('requests the theme field', () => {
+    expect(SYSTEM_PROMPT).toContain('"theme"');
+  });
+
+  it('requests the narrativeRole field', () => {
+    expect(SYSTEM_PROMPT).toContain('"narrativeRole"');
+  });
+
+  it('requests the strength field on edges', () => {
+    expect(SYSTEM_PROMPT).toContain('"strength"');
   });
 });
