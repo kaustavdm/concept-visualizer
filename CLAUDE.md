@@ -10,7 +10,8 @@ SvelteKit 2 SPA (adapter-static, SSR disabled) with Svelte 5 runes ($props, $sta
 - **Database**: Dexie.js wrapping IndexedDB in `src/lib/db/index.ts`. Tables: files, settings
 - **Extractors**: `src/lib/extractors/` — ConceptExtractor interface, four engines behind a registry. All produce VisualizationSchema
 - **Renderers**: `src/lib/components/visualizer/renderers/` — D3.js renderers for graph, tree, flowchart, hierarchy
-- **Controls**: `src/lib/components/controls/` — Gamepad-inspired pad components, keyboard controller in `src/lib/controllers/keyboard.ts`
+- **Renderer utilities**: `src/lib/components/visualizer/renderers/utils.ts` — shared palette (`THEME_COLORS_LIGHT`/`THEME_COLORS_DARK`), `themeColor()`, `nodeRadius()`, `edgeThickness()`, `edgeOpacity()`, `hexToRgba()`, `truncate()`
+- **Controls**: `src/lib/components/controls/` — Gamepad-inspired pad components (nav/zoom only on canvas), keyboard controller in `src/lib/controllers/keyboard.ts`
 
 ## Commands
 
@@ -63,6 +64,28 @@ docs/plans/            # Design docs and implementation plans
 ## Types
 
 The central data contract is `VisualizationSchema` in `src/lib/types.ts`. All extractors produce it, all renderers consume it.
+
+### VisualizationNode fields (all optional except id/label)
+- `weight?: number` — 0–1 importance → node radius (12–40px via `nodeRadius()`)
+- `theme?: string` — cluster label → color family via `themeColor()`
+- `narrativeRole?: 'central' | 'supporting' | 'contextual' | 'outcome'` — visual emphasis
+- `details?: string` — 1-2 sentence description shown in tooltip and as inline snippet for weight ≥ 0.65
+
+### VisualizationEdge fields
+- `strength?: number` — 0–1 relationship strength → line thickness + opacity
+
+## Visualization Components
+
+- `VisualizerCanvas.svelte` — SVG canvas with zoom/pan, post-render event attachment, NodeTooltip overlay
+- `NodeTooltip.svelte` — floating glass card on hover: shows label, narrativeRole badge, details, connected nodes
+- Hover any node → tooltip; click any node → neighbourhood highlight (others fade to 12%); click background → reset
+
+## Controls Layout
+
+- **Canvas** (left HUD): NavCluster + ZoomPair only — pan/zoom navigation
+- **Editor pane**: Visualize, cycle type, export, auto-send — all editor actions live here
+- **Keyboard shortcuts**: Enter=visualize, Tab=cycle type, P=export, Q=auto-send (unchanged)
+- Right HUD cluster removed to free canvas for tooltip overlays
 
 ## Testing
 
