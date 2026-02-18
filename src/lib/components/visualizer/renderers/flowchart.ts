@@ -1,6 +1,9 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
-import { themeColor, edgeThickness, edgeOpacity, hexToRgba, truncate } from './utils';
+import {
+  themeColor, edgeThickness, edgeOpacity, hexToRgba, truncate,
+  parseSvgDimensions, setupD3Zoom, CARD_W, CARD_H, appendDetailCard
+} from './utils';
 
 const NODE_WIDTH = 150;
 const NODE_HEIGHT = 44;
@@ -11,7 +14,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
   const svg = d3.select(svgEl);
   svg.selectAll('*').remove();
 
-  const width = parseInt(svgEl.getAttribute('width') || '800');
+  const { width } = parseSvgDimensions(svgEl);
 
   // Topological sort for positioning
   const positions = new Map<string, { x: number; y: number }>();
@@ -51,15 +54,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     }
   });
 
-  const g = svg.append('g');
-
-  const zoom = d3.zoom<SVGSVGElement, unknown>()
-    .scaleExtent([0.2, 4])
-    .on('zoom', (event) => g.attr('transform', event.transform));
-  svg.call(zoom);
-  (svgEl as any).__d3Zoom = zoom;
-
-  // Arrow marker
+  // Arrow marker — declared in <defs> before content elements per SVG spec
   svg.append('defs').append('marker')
     .attr('id', 'fc-arrow')
     .attr('viewBox', '0 -5 10 10')
@@ -69,6 +64,9 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .append('path')
     .attr('d', 'M0,-5L10,0L0,5')
     .style('fill', 'var(--viz-edge)');
+
+  const g = svg.append('g');
+  setupD3Zoom(svg, g);
 
   // Edges — cubic bezier curves with variable thickness
   g.selectAll('path.fc-edge')
@@ -116,8 +114,8 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('height', NODE_HEIGHT)
     .attr('rx', NODE_HEIGHT / 2)
     .attr('ry', NODE_HEIGHT / 2)
-    .style('fill', d => hexToRgba(themeColor(d.theme, d.group), 0.82))
-    .style('stroke', d => themeColor(d.theme, d.group))
+    .style('fill', d => hexToRgba(themeColor(d.theme), 0.82))
+    .style('stroke', d => themeColor(d.theme))
     .attr('stroke-width', 1.5);
 
   // Label
@@ -132,35 +130,17 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .style('fill', 'var(--text-primary)');
 
   // Detail card — glass rect below pill with vertical connector
-  const CARD_W = 148, CARD_H = 30;
-  nodeG.filter(d => !!d.details && (d.weight ?? 0) >= 0.6)
+  nodeG.filter(d => !!d.details && (d.weight ?? 0) >= 0.65)
     .each(function(d) {
       const group = d3.select(this);
       const cardX = (NODE_WIDTH - CARD_W) / 2;
       const cardY = NODE_HEIGHT + 6;
-
-      group.append('line')
-        .attr('x1', NODE_WIDTH / 2).attr('y1', NODE_HEIGHT)
-        .attr('x2', NODE_WIDTH / 2).attr('y2', cardY)
-        .style('stroke', 'var(--glass-border)')
-        .attr('stroke-width', 0.75)
-        .style('opacity', 0.7)
-        .style('pointer-events', 'none');
-
-      group.append('rect')
-        .attr('x', cardX).attr('y', cardY)
-        .attr('width', CARD_W).attr('height', CARD_H)
-        .attr('rx', 5)
-        .style('fill', 'var(--glass-bg)')
-        .style('stroke', 'var(--glass-border)')
-        .attr('stroke-width', 0.75)
-        .style('pointer-events', 'none');
-
-      group.append('text')
-        .text(truncate(d.details, 30))
-        .attr('x', cardX + 7).attr('y', cardY + CARD_H / 2 + 4)
-        .attr('font-size', '9px')
-        .style('fill', 'var(--text-tertiary)')
-        .style('pointer-events', 'none');
+      appendDetailCard(
+        group,
+        NODE_WIDTH / 2, NODE_HEIGHT,
+        NODE_WIDTH / 2, cardY,
+        cardX, cardY,
+        truncate(d.details, 30)
+      );
     });
 }

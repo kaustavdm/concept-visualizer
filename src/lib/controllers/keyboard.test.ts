@@ -59,11 +59,6 @@ describe('KeyboardController', () => {
     expect(actions).toContain('cycle_viz_type');
   });
 
-  it('should map p to export', () => {
-    press('p');
-    expect(actions).toContain('export');
-  });
-
   it('should map q to toggle_auto_send', () => {
     press('q');
     expect(actions).toContain('toggle_auto_send');
@@ -95,10 +90,4 @@ describe('KeyboardController', () => {
     expect(actions).not.toContain('zoom_in');
   });
 
-  it('should track held keys via activeKeys', () => {
-    press('z');
-    expect(controller.activeKeys()).toContain('z');
-    release('z');
-    expect(controller.activeKeys()).not.toContain('z');
-  });
 });

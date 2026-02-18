@@ -17,9 +17,9 @@ const baseSchema: VisualizationSchema = {
   title: 'Test Graph',
   description: 'A test',
   nodes: [
-    { id: 'a', label: 'Node A', group: 'g1', weight: 1.0, theme: 'process', narrativeRole: 'central' },
-    { id: 'b', label: 'Node B', group: 'g1', weight: 0.5, theme: 'process', narrativeRole: 'supporting' },
-    { id: 'c', label: 'Node C', group: 'g2', weight: 0.0, theme: 'context', narrativeRole: 'contextual' },
+    { id: 'a', label: 'Node A', weight: 1.0, theme: 'process', narrativeRole: 'central' },
+    { id: 'b', label: 'Node B', weight: 0.5, theme: 'process', narrativeRole: 'supporting' },
+    { id: 'c', label: 'Node C', weight: 0.0, theme: 'context', narrativeRole: 'contextual' },
   ],
   edges: [
     { source: 'a', target: 'b', label: 'connects', strength: 0.8 },
@@ -73,7 +73,7 @@ describe('renderGraph', () => {
       title: 'Legacy',
       description: '',
       nodes: [
-        { id: 'x', label: 'X', group: 'g1' },
+        { id: 'x', label: 'X', theme: 'g1' },
         { id: 'y', label: 'Y' },
       ],
       edges: [{ source: 'x', target: 'y' }],

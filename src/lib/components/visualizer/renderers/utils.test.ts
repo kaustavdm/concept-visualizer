@@ -25,12 +25,6 @@ describe('themeColor', () => {
     expect(themeColor('emotion')).toBe(themeColor('emotion'));
   });
 
-  it('falls back to group when theme is undefined', () => {
-    const a = themeColor(undefined, 'g1');
-    const b = themeColor(undefined, 'g1');
-    expect(a).toBe(b);
-    expect(THEME_COLORS).toContain(a);
-  });
 });
 
 describe('THEME_COLORS_LIGHT and THEME_COLORS_DARK', () => {
@@ -82,10 +76,6 @@ describe('themeColorForMode', () => {
     expect(themeColorForMode(undefined, true)).toBe(THEME_COLORS_DARK[0]);
   });
 
-  it('supports fallback group in dark mode', () => {
-    const a = themeColorForMode(undefined, true, 'g1');
-    expect(THEME_COLORS_DARK).toContain(a);
-  });
 });
 
 describe('nodeRadius', () => {

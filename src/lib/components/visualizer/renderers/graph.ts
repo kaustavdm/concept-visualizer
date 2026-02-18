@@ -1,16 +1,15 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
-import { themeColor, nodeRadius, edgeThickness, edgeOpacity, hexToRgba, truncate } from './utils';
-
-const CARD_W = 148;
-const CARD_H = 30;
+import {
+  themeColor, nodeRadius, edgeThickness, edgeOpacity, hexToRgba, truncate,
+  parseSvgDimensions, setupD3Zoom, CARD_W, CARD_H
+} from './utils';
 
 export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
   svg.selectAll('*').remove();
 
-  const width = parseInt(svgEl.getAttribute('width') || '800');
-  const height = parseInt(svgEl.getAttribute('height') || '600');
+  const { width, height } = parseSvgDimensions(svgEl);
 
   const nodes = schema.nodes.map(n => ({ ...n }));
   const edges = schema.edges.map(e => ({ ...e, source: e.source, target: e.target }));
@@ -26,12 +25,7 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .force('collision', d3.forceCollide().radius((d: any) => nodeRadius(d.weight) + 10));
 
   const g = svg.append('g');
-
-  const zoom = d3.zoom<SVGSVGElement, unknown>()
-    .scaleExtent([0.2, 4])
-    .on('zoom', (event) => g.attr('transform', event.transform));
-  svg.call(zoom);
-  (svgEl as any).__d3Zoom = zoom;
+  setupD3Zoom(svg, g);
 
   // Click SVG background to deselect neighbourhood highlight
   svg.on('click', () => {
@@ -47,7 +41,7 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .join('circle')
     .attr('class', 'glow')
     .attr('r', (d: any) => nodeRadius(d.weight) + 8)
-    .style('fill', d => hexToRgba(themeColor(d.theme, d.group), 0.25))
+    .style('fill', d => hexToRgba(themeColor(d.theme), 0.25))
     .style('pointer-events', 'none');
 
   // ── Edges — curved quadratic bezier paths ──
@@ -80,8 +74,8 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .data(nodes)
     .join('circle')
     .attr('r', d => nodeRadius(d.weight))
-    .style('fill', d => hexToRgba(themeColor(d.theme, d.group), 0.82))
-    .style('stroke', d => themeColor(d.theme, d.group))
+    .style('fill', d => hexToRgba(themeColor(d.theme), 0.82))
+    .style('stroke', d => themeColor(d.theme))
     .attr('stroke-width', 1.5)
     .style('cursor', 'pointer')
     .call(drag(simulation) as any)
@@ -116,6 +110,7 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .style('pointer-events', 'none');
 
   // ── Detail cards — glass rect attached to node, radiates outward from center ──
+  // Note: positioned dynamically in the simulation tick below.
   const detailCards = g.append('g')
     .selectAll('g.detail-card')
     .data(nodes.filter((n: any) => (n.weight ?? 0.5) >= 0.65 && n.details))

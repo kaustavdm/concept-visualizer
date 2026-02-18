@@ -3,7 +3,7 @@ export type PadAction =
   | 'focus_up' | 'focus_down' | 'focus_left' | 'focus_right'
   | 'fit_to_screen'
   | 'pan_up' | 'pan_down' | 'pan_left' | 'pan_right'
-  | 'visualize' | 'cycle_viz_type' | 'cycle_engine' | 'export' | 'toggle_auto_send'
+  | 'visualize' | 'cycle_viz_type' | 'cycle_engine' | 'toggle_auto_send'
   | 'deselect';
 
 const KEY_MAP: Record<string, PadAction> = {
@@ -20,7 +20,6 @@ const KEY_MAP: Record<string, PadAction> = {
   'ArrowRight': 'focus_right',
   'Enter': 'visualize',
   'Tab': 'cycle_viz_type',
-  'p': 'export',
   'q': 'toggle_auto_send',
   'Escape': 'deselect'
 };
@@ -28,7 +27,7 @@ const KEY_MAP: Record<string, PadAction> = {
 // Actions that should fire only once per press (not repeat)
 const DISCRETE_ACTIONS: Set<PadAction> = new Set([
   'fit_to_screen', 'visualize', 'cycle_viz_type', 'cycle_engine',
-  'export', 'toggle_auto_send', 'deselect'
+  'toggle_auto_send', 'deselect'
 ]);
 
 // Keys that work even when text input is focused
@@ -91,9 +90,5 @@ export function createKeyboardController(options: KeyboardControllerOptions) {
     heldKeys.clear();
   }
 
-  function activeKeys(): Set<string> {
-    return new Set(heldKeys);
-  }
-
-  return { attach, detach, activeKeys };
+  return { attach, detach };
 }

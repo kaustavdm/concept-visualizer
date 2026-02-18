@@ -57,21 +57,15 @@ function detectVizType(similarityMatrix: number[][]): VisualizationType {
   const n = similarityMatrix.length;
   if (n < 2) return 'graph';
 
-  // Calculate average similarity and distribution
-  let totalSim = 0;
   let highSimCount = 0;
   let pairCount = 0;
 
   for (let i = 0; i < n; i++) {
     for (let j = i + 1; j < n; j++) {
-      totalSim += similarityMatrix[i][j];
       if (similarityMatrix[i][j] > 0.7) highSimCount++;
       pairCount++;
     }
   }
-
-  // Suppress unused variable warning
-  void totalSim;
 
   // Tight clusters with clear center = hierarchy
   if (highSimCount > pairCount * 0.5) return 'hierarchy';
@@ -153,7 +147,6 @@ export class TFJSExtractor implements ConceptExtractor {
     const nodes: VisualizationNode[] = sortedNouns.map(([noun], i) => ({
       id: `sem-${i}`,
       label: noun.split(' ').map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
-      type: 'concept',
       details: `Appears in ${sentenceNouns.get(noun)!.size} sentence(s)`
     }));
 

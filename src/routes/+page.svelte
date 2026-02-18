@@ -30,7 +30,6 @@
 
   let activeActions = $state<Set<PadAction>>(new Set());
   let controlPlacement = $state<PlacementMode>('hud');
-  let exportMenuOpen = $state(false);
 
   // Pan command state for canvas
   let panTick = $state(0);
@@ -118,9 +117,6 @@
         break;
       case 'cycle_engine':
         cycleEngine();
-        break;
-      case 'export':
-        exportMenuOpen = !exportMenuOpen;
         break;
       case 'toggle_auto_send':
         if (activeFile) {

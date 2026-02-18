@@ -1,16 +1,15 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
-import { themeColor, nodeRadius, hexToRgba, truncate } from './utils';
-
-const CARD_W = 148;
-const CARD_H = 30;
+import {
+  themeColor, nodeRadius, hexToRgba, truncate,
+  parseSvgDimensions, setupD3Zoom, CARD_W, CARD_H, appendDetailCard
+} from './utils';
 
 export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
   svg.selectAll('*').remove();
 
-  const width = parseInt(svgEl.getAttribute('width') || '800');
-  const height = parseInt(svgEl.getAttribute('height') || '600');
+  const { width, height } = parseSvgDimensions(svgEl);
   const cx = width / 2;
   const cy = height / 2;
   const outerRadius = Math.min(width, height) / 2 - 90;
@@ -37,11 +36,8 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
 
-  const zoom = d3.zoom<SVGSVGElement, unknown>()
-    .scaleExtent([0.2, 4])
-    .on('zoom', (event) => g.attr('transform', `translate(${cx},${cy}) ${event.transform}`));
-  svg.call(zoom);
-  (svgEl as any).__d3Zoom = zoom;
+  // Radial zoom: keep the centre translate as a fixed prefix.
+  setupD3Zoom(svg, g, `translate(${cx},${cy})`);
 
   // Radial bezier links
   g.selectAll('path.radial-link')
@@ -68,8 +64,8 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   nodeG.append('circle')
     .attr('r', (d: any) => nodeRadius(d.data.weight))
-    .style('fill', (d: any) => hexToRgba(themeColor(d.data.theme, d.data.group), 0.82))
-    .style('stroke', (d: any) => themeColor(d.data.theme, d.data.group))
+    .style('fill', (d: any) => hexToRgba(themeColor(d.data.theme), 0.82))
+    .style('stroke', (d: any) => themeColor(d.data.theme))
     .attr('stroke-width', 1.5);
 
   nodeG.append('text')
@@ -98,29 +94,6 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
       const connY2 = Math.sin(angle) * (r + GAP);
       const cardX = goRight ? connX2 : connX2 - CARD_W;
       const cardY = connY2 - CARD_H / 2;
-
-      group.append('line')
-        .attr('x1', connX1).attr('y1', connY1)
-        .attr('x2', connX2).attr('y2', connY2)
-        .style('stroke', 'var(--glass-border)')
-        .attr('stroke-width', 0.75)
-        .style('opacity', 0.7)
-        .style('pointer-events', 'none');
-
-      group.append('rect')
-        .attr('x', cardX).attr('y', cardY)
-        .attr('width', CARD_W).attr('height', CARD_H)
-        .attr('rx', 5)
-        .style('fill', 'var(--glass-bg)')
-        .style('stroke', 'var(--glass-border)')
-        .attr('stroke-width', 0.75)
-        .style('pointer-events', 'none');
-
-      group.append('text')
-        .text(truncate(d.data.details, 30))
-        .attr('x', cardX + 7).attr('y', cardY + CARD_H / 2 + 4)
-        .attr('font-size', '9px')
-        .style('fill', 'var(--text-tertiary)')
-        .style('pointer-events', 'none');
+      appendDetailCard(group, connX1, connY1, connX2, connY2, cardX, cardY, truncate(d.data.details, 30));
     });
 }
