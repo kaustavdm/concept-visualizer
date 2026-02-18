@@ -1,5 +1,6 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
+import { themeColor, nodeRadius, hexToRgba } from './utils';
 
 export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
@@ -7,9 +8,11 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   const width = parseInt(svgEl.getAttribute('width') || '800');
   const height = parseInt(svgEl.getAttribute('height') || '600');
-  const margin = { top: 20, right: 120, bottom: 20, left: 120 };
+  const cx = width / 2;
+  const cy = height / 2;
+  const outerRadius = Math.min(width, height) / 2 - 90;
 
-  // Build hierarchy (horizontal tree layout)
+  // Build hierarchy from nodes + edges
   const nodeMap = new Map(schema.nodes.map(n => [n.id, { ...n, children: [] as any[] }]));
   const childIds = new Set(schema.edges.map(e => e.target));
   const rootId = schema.nodes.find(n => !childIds.has(n.id))?.id || schema.nodes[0]?.id;
@@ -24,48 +27,57 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
   if (!rootData) return;
 
   const root = d3.hierarchy(rootData);
-  const treeLayout = d3.tree().size([
-    height - margin.top - margin.bottom,
-    width - margin.left - margin.right
-  ]);
+  const treeLayout = d3.tree<any>()
+    .size([2 * Math.PI, outerRadius])
+    .separation((a, b) => (a.parent === b.parent ? 1 : 2) / a.depth);
   treeLayout(root as any);
 
-  const g = svg.append('g')
-    .attr('transform', `translate(${margin.left},${margin.top})`);
+  const g = svg.append('g').attr('transform', `translate(${cx},${cy})`);
 
   const zoom = d3.zoom<SVGSVGElement, unknown>()
-    .scaleExtent([0.3, 3])
-    .on('zoom', (event) => g.attr('transform', event.transform));
+    .scaleExtent([0.2, 4])
+    .on('zoom', (event) => g.attr('transform', `translate(${cx},${cy}) ${event.transform}`));
   svg.call(zoom);
   (svgEl as any).__d3Zoom = zoom;
 
-  // Links (horizontal)
-  g.selectAll('path')
+  // Radial bezier links
+  g.selectAll('path.radial-link')
     .data(root.links())
     .join('path')
-    .attr('d', d3.linkHorizontal()
-      .x((d: any) => d.y)
-      .y((d: any) => d.x) as any)
+    .attr('class', 'radial-link')
+    .attr('d', d3.linkRadial<any, any>()
+      .angle((d: any) => d.x)
+      .radius((d: any) => d.y) as any)
     .style('fill', 'none')
     .style('stroke', 'var(--viz-edge)')
-    .attr('stroke-width', 1.5);
+    .attr('stroke-width', 1.5)
+    .style('opacity', 0.5);
 
   // Nodes
   const nodeG = g.selectAll('g.node')
     .data(root.descendants())
     .join('g')
     .attr('class', 'node')
-    .attr('transform', (d: any) => `translate(${d.y},${d.x})`);
+    .attr('transform', (d: any) => {
+      const angle = d.x - Math.PI / 2;
+      return `translate(${d.y * Math.cos(angle)},${d.y * Math.sin(angle)})`;
+    });
 
   nodeG.append('circle')
-    .attr('r', 6)
-    .style('fill', (d: any) => d.children ? '#3b82f6' : '#10b981');
+    .attr('r', (d: any) => nodeRadius(d.data.weight))
+    .style('fill', (d: any) => hexToRgba(themeColor(d.data.theme, d.data.group), 0.82))
+    .style('stroke', (d: any) => themeColor(d.data.theme, d.data.group))
+    .attr('stroke-width', 1.5);
 
   nodeG.append('text')
     .text((d: any) => d.data.label)
-    .attr('font-size', '12px')
+    .attr('font-size', (d: any) => d.depth === 0 ? '13px' : '10px')
+    .attr('font-weight', (d: any) => d.depth === 0 ? '600' : '400')
     .style('fill', 'var(--text-primary)')
-    .attr('dx', (d: any) => d.children ? -12 : 12)
-    .attr('dy', 4)
-    .attr('text-anchor', (d: any) => d.children ? 'end' : 'start');
+    .attr('text-anchor', (d: any) => d.x < Math.PI ? 'start' : 'end')
+    .attr('x', (d: any) => {
+      const r = nodeRadius(d.data.weight) + 5;
+      return d.x < Math.PI ? r : -r;
+    })
+    .attr('dy', 4);
 }
