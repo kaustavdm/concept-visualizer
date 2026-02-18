@@ -1,6 +1,9 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
-import { themeColor, nodeRadius, hexToRgba } from './utils';
+import { themeColor, nodeRadius, hexToRgba, truncate } from './utils';
+
+const CARD_W = 148;
+const CARD_H = 30;
 
 export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
@@ -24,10 +27,8 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
   if (!rootData) return;
 
   const root = d3.hierarchy(rootData);
-  const treeLayout = d3.tree().size([
-    width - margin.left - margin.right,
-    height - margin.top - margin.bottom
-  ]);
+  const innerWidth = width - margin.left - margin.right;
+  const treeLayout = d3.tree().size([innerWidth, height - margin.top - margin.bottom]);
   treeLayout(root as any);
 
   const g = svg.append('g')
@@ -72,4 +73,42 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
     .style('fill', 'var(--text-primary)')
     .attr('text-anchor', 'middle')
     .attr('dy', (d: any) => nodeRadius(d.data.weight) + 14);
+
+  // Detail cards — glass rect attached horizontally, flip side based on x position
+  nodeG.filter((d: any) => (d.data.weight ?? 0.5) >= 0.65 && !!d.data.details)
+    .each(function(d: any) {
+      const group = d3.select(this);
+      const r = nodeRadius(d.data.weight);
+      const GAP = 12;
+      // Place card to right for left-half nodes, left for right-half nodes
+      const goRight = (d.x ?? 0) <= innerWidth / 2;
+      const connX1 = goRight ? r : -r;
+      const connX2 = goRight ? r + GAP : -(r + GAP);
+      const cardX = goRight ? connX2 : connX2 - CARD_W;
+      const cardY = -CARD_H / 2;
+
+      group.append('line')
+        .attr('x1', connX1).attr('y1', 0)
+        .attr('x2', connX2).attr('y2', 0)
+        .style('stroke', 'var(--glass-border)')
+        .attr('stroke-width', 0.75)
+        .style('opacity', 0.7)
+        .style('pointer-events', 'none');
+
+      group.append('rect')
+        .attr('x', cardX).attr('y', cardY)
+        .attr('width', CARD_W).attr('height', CARD_H)
+        .attr('rx', 5)
+        .style('fill', 'var(--glass-bg)')
+        .style('stroke', 'var(--glass-border)')
+        .attr('stroke-width', 0.75)
+        .style('pointer-events', 'none');
+
+      group.append('text')
+        .text(truncate(d.data.details, 30))
+        .attr('x', cardX + 7).attr('y', cardY + CARD_H / 2 + 4)
+        .attr('font-size', '9px')
+        .style('fill', 'var(--text-tertiary)')
+        .style('pointer-events', 'none');
+    });
 }

@@ -2,6 +2,9 @@ import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
 import { themeColor, nodeRadius, edgeThickness, edgeOpacity, hexToRgba, truncate } from './utils';
 
+const CARD_W = 148;
+const CARD_H = 30;
+
 export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
   svg.selectAll('*').remove();
@@ -112,17 +115,32 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .attr('dy', (d: any) => nodeRadius(d.weight) >= 22 ? 4 : nodeRadius(d.weight) + 14)
     .style('pointer-events', 'none');
 
-  // ── Detail snippets (visible for prominent nodes) ──
-  const detailSnippets = g.append('g')
-    .selectAll('text.detail')
-    .data(nodes.filter(n => (n.weight ?? 0.5) >= 0.65 && n.details))
-    .join('text')
-    .attr('class', 'detail')
-    .text(d => truncate(d.details, 42))
-    .attr('font-size', '9px')
-    .style('fill', 'var(--text-tertiary)')
-    .attr('text-anchor', 'middle')
+  // ── Detail cards — glass rect attached to node, radiates outward from center ──
+  const detailCards = g.append('g')
+    .selectAll('g.detail-card')
+    .data(nodes.filter((n: any) => (n.weight ?? 0.5) >= 0.65 && n.details))
+    .join('g')
+    .attr('class', 'detail-card')
     .style('pointer-events', 'none');
+
+  detailCards.append('line')
+    .attr('class', 'dc-conn')
+    .style('stroke', 'var(--glass-border)')
+    .attr('stroke-width', 0.75)
+    .style('opacity', 0.7);
+
+  detailCards.append('rect')
+    .attr('width', CARD_W)
+    .attr('height', CARD_H)
+    .attr('rx', 5)
+    .style('fill', 'var(--glass-bg)')
+    .style('stroke', 'var(--glass-border)')
+    .attr('stroke-width', 0.75);
+
+  detailCards.append('text')
+    .text((d: any) => truncate(d.details, 30))
+    .attr('font-size', '9px')
+    .style('fill', 'var(--text-tertiary)');
 
   function curvePath(d: any): string {
     const sx = d.source.x ?? 0, sy = d.source.y ?? 0;
@@ -154,9 +172,31 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
       .attr('x', (d: any) => d.x)
       .attr('y', (d: any) => d.y);
 
-    detailSnippets
-      .attr('x', (d: any) => d.x)
-      .attr('y', (d: any) => d.y + nodeRadius(d.weight) + 25);
+    // Position each detail card outward from the graph center
+    detailCards.each(function(d: any) {
+      const nx = d.x ?? 0;
+      const ny = d.y ?? 0;
+      const angle = Math.atan2(ny - height / 2, nx - width / 2);
+      const r = nodeRadius(d.weight);
+      const GAP = 12;
+      // Connector: node surface → card anchor
+      const cx1 = nx + Math.cos(angle) * r;
+      const cy1 = ny + Math.sin(angle) * r;
+      const cx2 = nx + Math.cos(angle) * (r + GAP);
+      const cy2 = ny + Math.sin(angle) * (r + GAP);
+      // Card rect: extends right if outward angle is rightward, left otherwise
+      const goRight = Math.cos(angle) >= 0;
+      const rx = goRight ? cx2 : cx2 - CARD_W;
+      const ry = cy2 - CARD_H / 2;
+
+      d3.select(this).select('.dc-conn')
+        .attr('x1', cx1).attr('y1', cy1)
+        .attr('x2', cx2).attr('y2', cy2);
+      d3.select(this).select('rect')
+        .attr('x', rx).attr('y', ry);
+      d3.select(this).select('text')
+        .attr('x', rx + 7).attr('y', ry + CARD_H / 2 + 4);
+    });
   });
 }
 

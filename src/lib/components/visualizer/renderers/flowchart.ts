@@ -131,13 +131,36 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('font-weight', d => d.narrativeRole === 'central' ? '600' : '400')
     .style('fill', 'var(--text-primary)');
 
-  // Detail snippet below label for prominent nodes
+  // Detail card — glass rect below pill with vertical connector
+  const CARD_W = 148, CARD_H = 30;
   nodeG.filter(d => !!d.details && (d.weight ?? 0) >= 0.6)
-    .append('text')
-    .text(d => truncate(d.details, 30))
-    .attr('x', NODE_WIDTH / 2)
-    .attr('y', NODE_HEIGHT / 2 + 10)
-    .attr('text-anchor', 'middle')
-    .attr('font-size', '8px')
-    .style('fill', 'var(--text-tertiary)');
+    .each(function(d) {
+      const group = d3.select(this);
+      const cardX = (NODE_WIDTH - CARD_W) / 2;
+      const cardY = NODE_HEIGHT + 6;
+
+      group.append('line')
+        .attr('x1', NODE_WIDTH / 2).attr('y1', NODE_HEIGHT)
+        .attr('x2', NODE_WIDTH / 2).attr('y2', cardY)
+        .style('stroke', 'var(--glass-border)')
+        .attr('stroke-width', 0.75)
+        .style('opacity', 0.7)
+        .style('pointer-events', 'none');
+
+      group.append('rect')
+        .attr('x', cardX).attr('y', cardY)
+        .attr('width', CARD_W).attr('height', CARD_H)
+        .attr('rx', 5)
+        .style('fill', 'var(--glass-bg)')
+        .style('stroke', 'var(--glass-border)')
+        .attr('stroke-width', 0.75)
+        .style('pointer-events', 'none');
+
+      group.append('text')
+        .text(truncate(d.details, 30))
+        .attr('x', cardX + 7).attr('y', cardY + CARD_H / 2 + 4)
+        .attr('font-size', '9px')
+        .style('fill', 'var(--text-tertiary)')
+        .style('pointer-events', 'none');
+    });
 }

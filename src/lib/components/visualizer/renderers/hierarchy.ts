@@ -1,6 +1,9 @@
 import * as d3 from 'd3';
 import type { VisualizationSchema } from '$lib/types';
-import { themeColor, nodeRadius, hexToRgba } from './utils';
+import { themeColor, nodeRadius, hexToRgba, truncate } from './utils';
+
+const CARD_W = 148;
+const CARD_H = 30;
 
 export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchema): void {
   const svg = d3.select(svgEl);
@@ -80,4 +83,44 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
       return d.x < Math.PI ? r : -r;
     })
     .attr('dy', 4);
+
+  // Detail cards — radially outward from node, glass rect with connector
+  nodeG.filter((d: any) => d.depth > 0 && (d.data.weight ?? 0.5) >= 0.65 && !!d.data.details)
+    .each(function(d: any) {
+      const group = d3.select(this);
+      const angle = d.x - Math.PI / 2;
+      const r = nodeRadius(d.data.weight);
+      const GAP = 12;
+      const goRight = Math.cos(angle) >= 0;
+      const connX1 = Math.cos(angle) * r;
+      const connY1 = Math.sin(angle) * r;
+      const connX2 = Math.cos(angle) * (r + GAP);
+      const connY2 = Math.sin(angle) * (r + GAP);
+      const cardX = goRight ? connX2 : connX2 - CARD_W;
+      const cardY = connY2 - CARD_H / 2;
+
+      group.append('line')
+        .attr('x1', connX1).attr('y1', connY1)
+        .attr('x2', connX2).attr('y2', connY2)
+        .style('stroke', 'var(--glass-border)')
+        .attr('stroke-width', 0.75)
+        .style('opacity', 0.7)
+        .style('pointer-events', 'none');
+
+      group.append('rect')
+        .attr('x', cardX).attr('y', cardY)
+        .attr('width', CARD_W).attr('height', CARD_H)
+        .attr('rx', 5)
+        .style('fill', 'var(--glass-bg)')
+        .style('stroke', 'var(--glass-border)')
+        .attr('stroke-width', 0.75)
+        .style('pointer-events', 'none');
+
+      group.append('text')
+        .text(truncate(d.data.details, 30))
+        .attr('x', cardX + 7).attr('y', cardY + CARD_H / 2 + 4)
+        .attr('font-size', '9px')
+        .style('fill', 'var(--text-tertiary)')
+        .style('pointer-events', 'none');
+    });
 }
