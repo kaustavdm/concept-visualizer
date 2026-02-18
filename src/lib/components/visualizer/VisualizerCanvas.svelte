@@ -11,10 +11,12 @@
     panTick?: number;
     panDx?: number;
     panDy?: number;
+    zoomTick?: number;
+    zoomDelta?: number;
     onNodeClick?: (nodeId: string) => void;
   }
 
-  let { visualization, error, loading, panTick = 0, panDx = 0, panDy = 0, onNodeClick }: Props = $props();
+  let { visualization, error, loading, panTick = 0, panDx = 0, panDy = 0, zoomTick = 0, zoomDelta = 1.2, onNodeClick }: Props = $props();
 
   let svgEl: SVGSVGElement;
   let containerEl: HTMLDivElement;
@@ -54,12 +56,29 @@
     }
   }
 
+  function zoomBy(factor: number) {
+    if (!svgEl) return;
+    const zoom = (svgEl as any).__d3Zoom;
+    if (zoom) {
+      zoom.scaleBy(d3.select(svgEl), factor);
+    }
+  }
+
   // React to pan commands
   let lastPanTick = 0;
   $effect(() => {
     if (panTick > lastPanTick) {
       panBy(panDx * PAN_STEP, panDy * PAN_STEP);
       lastPanTick = panTick;
+    }
+  });
+
+  // React to zoom commands
+  let lastZoomTick = 0;
+  $effect(() => {
+    if (zoomTick > lastZoomTick) {
+      zoomBy(zoomDelta);
+      lastZoomTick = zoomTick;
     }
   });
 

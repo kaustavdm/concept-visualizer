@@ -38,6 +38,10 @@
   let panDx = $state(0);
   let panDy = $state(0);
 
+  // Zoom command state for canvas
+  let zoomTick = $state(0);
+  let zoomDelta = $state(1.2);
+
   // Engine toast state
   let engineToast = $state('');
   let toastTimer: ReturnType<typeof setTimeout> | null = null;
@@ -90,9 +94,11 @@
     switch (action) {
       case 'zoom_in':
         focusStore.zoomIn();
+        zoomDelta = 1.2; zoomTick++;
         break;
       case 'zoom_out':
         focusStore.zoomOut();
+        zoomDelta = 1 / 1.2; zoomTick++;
         break;
       case 'focus_up':
       case 'focus_left':
@@ -268,6 +274,8 @@
       {panTick}
       {panDx}
       {panDy}
+      {zoomTick}
+      {zoomDelta}
       onNodeClick={handleNodeClick}
     />
     {#if controlPlacement === 'hud'}
