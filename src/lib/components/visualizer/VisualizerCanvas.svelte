@@ -2,7 +2,8 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   import { renderVisualization } from './renderers';
-  import type { VisualizationSchema } from '$lib/types';
+  import type { VisualizationSchema, VisualizationNode } from '$lib/types';
+  import NodeTooltip from './NodeTooltip.svelte';
 
   interface Props {
     visualization: VisualizationSchema | null;
@@ -21,6 +22,10 @@
   let svgEl: SVGSVGElement;
   let containerEl: HTMLDivElement;
 
+  let hoveredNode = $state<VisualizationNode | null>(null);
+  let tooltipX = $state(0);
+  let tooltipY = $state(0);
+
   const PAN_STEP = 50;
 
   function render() {
@@ -29,23 +34,48 @@
     svgEl.setAttribute('width', String(rect.width));
     svgEl.setAttribute('height', String(rect.height));
     renderVisualization(svgEl, visualization);
+    attachNodeEvents();
+  }
 
-    // Attach click handlers to nodes after rendering
-    if (onNodeClick) {
-      // Support both circle (graph/tree/hierarchy) and rect (flowchart) node elements
-      const nodeElements = svgEl.querySelectorAll('circle, g.node rect');
-      nodeElements.forEach((el) => {
-        el.setAttribute('style', (el.getAttribute('style') || '') + ';cursor:pointer');
-        el.addEventListener('click', (e) => {
-          // For g.node children, data is on the parent g
-          const dataEl = el.closest('g.node') || el;
-          const data = (dataEl as any).__data__;
-          if (data?.id) {
-            onNodeClick(data.id);
-          }
-        });
+  function attachNodeEvents() {
+    if (!visualization) return;
+    const containerRect = containerEl.getBoundingClientRect();
+    // Support circle (graph/tree/hierarchy, excluding glow rings) and rect (flowchart)
+    const nodeElements = svgEl.querySelectorAll('circle:not(.glow), g.node rect');
+
+    nodeElements.forEach((el) => {
+      const dataEl = el.closest('g.node') || el;
+      el.setAttribute('style', (el.getAttribute('style') || '') + ';cursor:pointer');
+
+      el.addEventListener('mouseover', (e) => {
+        const raw = (dataEl as any).__data__;
+        const nodeData = raw?.data ?? raw;
+        if (!nodeData?.id) return;
+        const node = visualization!.nodes.find(n => n.id === nodeData.id);
+        if (!node) return;
+        const me = e as MouseEvent;
+        tooltipX = me.clientX - containerRect.left;
+        tooltipY = me.clientY - containerRect.top;
+        hoveredNode = node;
       });
-    }
+
+      el.addEventListener('mousemove', (e) => {
+        if (!hoveredNode) return;
+        const me = e as MouseEvent;
+        tooltipX = me.clientX - containerRect.left;
+        tooltipY = me.clientY - containerRect.top;
+      });
+
+      el.addEventListener('mouseout', () => { hoveredNode = null; });
+
+      if (onNodeClick) {
+        el.addEventListener('click', () => {
+          const raw = (dataEl as any).__data__;
+          const nodeData = raw?.data ?? raw;
+          if (nodeData?.id) onNodeClick(nodeData.id);
+        });
+      }
+    });
   }
 
   function panBy(dx: number, dy: number) {
@@ -124,4 +154,12 @@
   {/if}
 
   <svg bind:this={svgEl} class="w-full h-full"></svg>
+
+  <NodeTooltip
+    node={hoveredNode}
+    x={tooltipX}
+    y={tooltipY}
+    edges={visualization?.edges ?? []}
+    allNodes={visualization?.nodes ?? []}
+  />
 </div>

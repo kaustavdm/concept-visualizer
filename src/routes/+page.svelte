@@ -31,7 +31,6 @@
   let activeActions = $state<Set<PadAction>>(new Set());
   let controlPlacement = $state<PlacementMode>('hud');
   let exportMenuOpen = $state(false);
-  let autoSend = $derived(activeFile?.settings.autoSend ?? false);
 
   // Pan command state for canvas
   let panTick = $state(0);
@@ -248,10 +247,7 @@
     focusStore.focusNode(nodeId);
   }
 
-  function handlePlacementChange(mode: PlacementMode) {
-    controlPlacement = mode;
-    settingsStore.update({ controlPlacement: mode });
-  }
+
 </script>
 
 <AppShell>
@@ -282,10 +278,7 @@
       <GamepadControls
         {activeActions}
         onAction={handleAction}
-        vizType={$vizStore.vizType}
-        autoSendOn={autoSend}
         placement="hud"
-        onPlacementChange={handlePlacementChange}
       />
     {/if}
   {/snippet}
@@ -295,10 +288,7 @@
       <GamepadControls
         {activeActions}
         onAction={handleAction}
-        vizType={$vizStore.vizType}
-        autoSendOn={autoSend}
         placement="dock"
-        onPlacementChange={handlePlacementChange}
       />
     {/if}
   {/snippet}
@@ -325,10 +315,7 @@
           <GamepadControls
             {activeActions}
             onAction={handleAction}
-            vizType={$vizStore.vizType}
-            autoSendOn={autoSend}
             placement="embedded"
-            onPlacementChange={handlePlacementChange}
           />
         {/if}
       {/snippet}
