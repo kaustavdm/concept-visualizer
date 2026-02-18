@@ -155,6 +155,13 @@
     await settingsStore.init();
     await filesStore.init();
 
+    // Ensure at least one file exists so the editor is immediately usable on fresh install.
+    // Without this, activeFile is undefined → text prop is '' → Visualize button stays
+    // disabled even after typing (handleTextChange silently no-ops with no active file).
+    if ($filesStore.files.length === 0) {
+      await filesStore.create('Untitled Concept');
+    }
+
     controlPlacement = $settingsStore.controlPlacement ?? 'hud';
 
     // Set initial viz type
