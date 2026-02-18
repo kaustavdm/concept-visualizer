@@ -11,12 +11,19 @@
 
   let { file, active, onclick, onrename, ondelete }: Props = $props();
   let editing = $state(false);
-  let editTitle = $state(file.title);
+  let editTitle = $state('');
+  let inputEl: HTMLInputElement | undefined = $state();
+
+  $effect(() => {
+    if (editing && inputEl) {
+      inputEl.focus();
+    }
+  });
 
   function startEditing(e: MouseEvent) {
     e.stopPropagation();
-    editing = true;
     editTitle = file.title;
+    editing = true;
   }
 
   function finishEditing() {
@@ -32,23 +39,26 @@
   }
 </script>
 
-<button
-  class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors group"
+<div
+  role="button"
+  tabindex="0"
+  class="w-full text-left px-3 py-2 text-sm rounded-md transition-colors group cursor-pointer"
   style={active
     ? `background: var(--accent-light); color: var(--accent-text)`
     : `color: var(--text-secondary)`}
-  onmouseenter={(e) => { if (!active) e.currentTarget.style.background = 'var(--surface-hover)'; }}
-  onmouseleave={(e) => { if (!active) e.currentTarget.style.background = ''; }}
+  onmouseenter={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = 'var(--surface-hover)'; }}
+  onmouseleave={(e) => { if (!active) (e.currentTarget as HTMLElement).style.background = ''; }}
   onclick={onclick}
+  onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') onclick(); }}
 >
   {#if editing}
     <input
+      bind:this={inputEl}
       class="w-full rounded px-1 py-0.5 text-sm focus:outline-none"
       style="background: var(--input-bg); border: 1px solid var(--accent); color: var(--text-primary)"
       bind:value={editTitle}
       onblur={finishEditing}
       onkeydown={handleKeydown}
-      autofocus
     />
   {:else}
     <div class="flex items-center justify-between">
@@ -66,4 +76,4 @@
       {file.updatedAt.toLocaleDateString()}
     </span>
   {/if}
-</button>
+</div>
