@@ -30,7 +30,8 @@ export default defineConfig({
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'google-fonts-stylesheet',
-              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 }
+              expiration: { maxEntries: 4, maxAgeSeconds: 60 * 60 * 24 * 365 },
+              cacheableResponse: { statuses: [0, 200] }
             }
           },
           {
@@ -43,7 +44,7 @@ export default defineConfig({
             }
           },
           {
-            urlPattern: /^https:\/\/(storage\.googleapis\.com|tfhub\.dev)\/.*/i,
+            urlPattern: /^https:\/\/storage\.googleapis\.com\/tfjs-models\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'tfjs-model',
