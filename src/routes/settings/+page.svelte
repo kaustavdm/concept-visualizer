@@ -9,6 +9,12 @@
   let controlPlacement = $state<'hud' | 'dock' | 'embedded'>('hud');
   let extractionEngine = $state<'llm' | 'nlp' | 'keywords' | 'semantic'>('llm');
 
+  let isMixedContent = $derived(
+    endpoint.startsWith('http://') &&
+    typeof window !== 'undefined' &&
+    window.location.protocol === 'https:'
+  );
+
   onMount(async () => {
     await settingsStore.init();
     endpoint = $settingsStore.llmEndpoint;
@@ -38,7 +44,18 @@
         style="background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); --tw-ring-color: var(--accent)"
         placeholder="http://localhost:11434/v1"
       />
-      <p class="text-xs mt-1" style="color: var(--text-muted)">OpenAI-compatible API endpoint</p>
+      {#if isMixedContent}
+        <div class="text-xs mt-1 rounded-md px-3 py-2" style="background: color-mix(in srgb, orange 15%, var(--canvas-bg)); border: 1px solid color-mix(in srgb, orange 40%, transparent); color: var(--text-primary)">
+          <strong>Mixed-content warning:</strong> This HTTP endpoint will be blocked by the browser when the app is served over HTTPS. To fix:
+          <ul class="mt-1 ml-3 list-disc space-y-0.5" style="color: var(--text-secondary)">
+            <li>Use <strong>Chrome</strong> and set <code>OLLAMA_ORIGINS={typeof window !== 'undefined' ? window.location.origin : 'https://your-app-origin'}</code></li>
+            <li>Run the app <strong>locally</strong> via <code>npm run preview</code></li>
+            <li>Put Ollama behind an <strong>HTTPS proxy</strong> (e.g. Caddy) and use an <code>https://</code> endpoint</li>
+          </ul>
+        </div>
+      {:else}
+        <p class="text-xs mt-1" style="color: var(--text-muted)">OpenAI-compatible API endpoint</p>
+      {/if}
     </div>
 
     <div>
