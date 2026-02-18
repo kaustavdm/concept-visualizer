@@ -1,11 +1,17 @@
 export type VisualizationType = 'graph' | 'tree' | 'flowchart' | 'hierarchy';
 
+export type NarrativeRole = 'central' | 'supporting' | 'contextual' | 'outcome';
+
 export interface VisualizationNode {
   id: string;
   label: string;
   type?: string;
   group?: string;
   details?: string;
+  // New semantic fields
+  weight?: number;        // 0–1 importance/centrality → node size
+  theme?: string;         // cluster label → color family
+  narrativeRole?: NarrativeRole;
 }
 
 export interface VisualizationEdge {
@@ -13,6 +19,7 @@ export interface VisualizationEdge {
   target: string;
   label?: string;
   type?: string;
+  strength?: number;      // 0–1 relationship strength → line thickness
 }
 
 export interface VisualizationSchema {
