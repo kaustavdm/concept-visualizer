@@ -39,7 +39,7 @@
 </script>
 
 {#if visualization}
-  <div class="p-4 space-y-3" style="border-bottom: 1px solid var(--border)">
+  <div class="p-4 space-y-3">
     <div>
       <h2 class="font-semibold text-sm" style="font-family: var(--font-main); color: var(--text-primary)">
         {focusedNode ? focusedNode.label : visualization.title}
