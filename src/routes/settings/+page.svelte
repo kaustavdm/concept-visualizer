@@ -9,10 +9,11 @@
   let controlPlacement = $state<'hud' | 'dock' | 'embedded'>('hud');
   let extractionEngine = $state<'llm' | 'nlp' | 'keywords' | 'semantic'>('llm');
 
+  let pageOrigin = $derived(typeof window !== 'undefined' ? window.location.origin : '');
   let isMixedContent = $derived(
-    endpoint.startsWith('http://') &&
     typeof window !== 'undefined' &&
-    window.location.protocol === 'https:'
+    window.location.protocol === 'https:' &&
+    endpoint.startsWith('http://')
   );
 
   onMount(async () => {
@@ -48,7 +49,7 @@
         <div class="text-xs mt-1 rounded-md px-3 py-2" style="background: color-mix(in srgb, orange 15%, var(--canvas-bg)); border: 1px solid color-mix(in srgb, orange 40%, transparent); color: var(--text-primary)">
           <strong>Mixed-content warning:</strong> This HTTP endpoint will be blocked by the browser when the app is served over HTTPS. To fix:
           <ul class="mt-1 ml-3 list-disc space-y-0.5" style="color: var(--text-secondary)">
-            <li>Use <strong>Chrome</strong> and set <code>OLLAMA_ORIGINS={typeof window !== 'undefined' ? window.location.origin : 'https://your-app-origin'}</code></li>
+            <li>Use <strong>Chrome</strong> and set <code>OLLAMA_ORIGINS={pageOrigin}</code></li>
             <li>Run the app <strong>locally</strong> via <code>npm run preview</code></li>
             <li>Put Ollama behind an <strong>HTTPS proxy</strong> (e.g. Caddy) and use an <code>https://</code> endpoint</li>
           </ul>
