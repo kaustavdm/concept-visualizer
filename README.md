@@ -1,13 +1,15 @@
 # Concept Visualizer
 
-Turn written text into interactive concept visualizations using local LLMs or offline extraction engines.
+Turn written text into rich, story-driven concept visualizations using local LLMs or offline extraction engines.
 
 ## Features
 
 - **Four visualization types**: Graph, Tree, Flowchart, Hierarchy — each tells a different story about the same concepts
+- **Storytelling visual encoding**: Node size = importance (weight), color family = theme cluster, glow rings for central/outcome nodes, curved bezier edges with strength thickness
+- **Hover tooltip**: Glass card shows concept description, narrative role badge, and up to 5 connected nodes on hover
+- **Neighbourhood highlight**: Click any node to dim all non-neighbours to 12% opacity; click background to restore
 - **Four extraction engines**: LLM (OpenAI-compatible), NLP (compromise.js), Keywords (RAKE), Semantic (TF.js + Universal Sentence Encoder)
 - **Gamepad-inspired controls**: WASD navigation, Z/X zoom, Enter to visualize, Tab to cycle viz types — every key lights up its on-screen button
-- **Three control placements**: Floating HUD, bottom dock, or embedded in the editor pane
 - **Adaptive theming**: Accent colors shift with visualization type (blue/emerald/amber/violet), dark mode support
 - **File management**: Create, rename, delete concept files — persisted in IndexedDB via Dexie.js
 - **Export**: PDF and Markdown+images (PNG) export
