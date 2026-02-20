@@ -72,7 +72,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
   g.selectAll('path.fc-edge')
     .data(schema.edges)
     .join('path')
-    .attr('class', 'fc-edge')
+    .attr('class', 'fc-edge edge-line')
     .attr('d', d => {
       const s = positions.get(d.source) || { x: 0, y: 0 };
       const t = positions.get(d.target) || { x: 0, y: 0 };
@@ -121,6 +121,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   // Label
   nodeG.append('text')
+    .attr('class', 'node-label')
     .text(d => d.label)
     .attr('x', NODE_WIDTH / 2)
     .attr('y', NODE_HEIGHT / 2)
@@ -133,7 +134,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
   // Detail card — glass rect below pill with vertical connector
   nodeG.filter(d => !!d.details && (d.weight ?? 0) >= 0.65)
     .each(function(d) {
-      const group = d3.select(this);
+      const group = d3.select(this).append('g').attr('class', 'detail-card');
       const cardX = (NODE_WIDTH - CARD_W) / 2;
       const cardY = NODE_HEIGHT + 6;
       appendDetailCard(

@@ -43,7 +43,7 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
   g.selectAll('path.radial-link')
     .data(root.links())
     .join('path')
-    .attr('class', 'radial-link')
+    .attr('class', 'radial-link edge-line')
     .attr('d', d3.linkRadial<any, any>()
       .angle((d: any) => d.x)
       .radius((d: any) => d.y) as any)
@@ -70,6 +70,7 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
     .attr('stroke-width', 1.5);
 
   nodeG.append('text')
+    .attr('class', 'node-label')
     .text((d: any) => d.data.label)
     .attr('font-size', (d: any) => d.depth === 0 ? '13px' : '10px')
     .attr('font-weight', (d: any) => d.depth === 0 ? '600' : '400')
@@ -84,7 +85,7 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
   // Detail cards — radially outward from node, glass rect with connector
   nodeG.filter((d: any) => d.depth > 0 && (d.data.weight ?? 0.5) >= 0.65 && !!d.data.details)
     .each(function(d: any) {
-      const group = d3.select(this);
+      const group = d3.select(this).append('g').attr('class', 'detail-card');
       const angle = d.x - Math.PI / 2;
       const r = nodeRadius(d.data.weight);
       const GAP = 12;

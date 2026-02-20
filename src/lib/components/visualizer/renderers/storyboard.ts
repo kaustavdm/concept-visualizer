@@ -159,7 +159,7 @@ export function renderStoryboard(svgEl: SVGSVGElement, schema: VisualizationSche
   g.selectAll('path.sb-edge')
     .data(schema.edges)
     .join('path')
-    .attr('class', 'sb-edge')
+    .attr('class', 'sb-edge edge-line')
     .attr('d', d => {
       const s = positions.get(d.source) ?? { x: 0, y: 0 };
       const t = positions.get(d.target) ?? { x: 0, y: 0 };
@@ -239,6 +239,7 @@ export function renderStoryboard(svgEl: SVGSVGElement, schema: VisualizationSche
 
     // Label
     group.append('text')
+      .attr('class', 'node-label')
       .text(truncate(d.label, 16))
       .attr('text-anchor', 'middle')
       .attr('y', d.details && (d.weight ?? 0) >= 0.65 ? -6 : 0)

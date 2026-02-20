@@ -124,7 +124,7 @@ export function renderLogicalFlow(svgEl: SVGSVGElement, schema: VisualizationSch
   g.selectAll('path.lf-edge')
     .data(schema.edges)
     .join('path')
-    .attr('class', 'lf-edge')
+    .attr('class', 'lf-edge edge-line')
     .attr('d', d => {
       const s = positions.get(d.source) ?? { x: 0, y: 0 };
       const t = positions.get(d.target) ?? { x: 0, y: 0 };
@@ -226,6 +226,7 @@ export function renderLogicalFlow(svgEl: SVGSVGElement, schema: VisualizationSch
 
     // Label
     group.append('text')
+      .attr('class', 'node-label')
       .text(truncate(d.label, 18))
       .attr('text-anchor', 'middle')
       .attr('dominant-baseline', 'central')
@@ -236,10 +237,11 @@ export function renderLogicalFlow(svgEl: SVGSVGElement, schema: VisualizationSch
 
     // Detail card for important nodes
     if (d.details && (d.weight ?? 0) >= 0.65) {
+      const dcGroup = group.append('g').attr('class', 'detail-card');
       const cardX = -CARD_W / 2;
       const cardY = NODE_H / 2 + 8;
       appendDetailCard(
-        group,
+        dcGroup,
         0, NODE_H / 2,
         0, cardY,
         cardX, cardY,

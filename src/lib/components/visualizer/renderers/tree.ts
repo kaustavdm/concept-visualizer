@@ -39,7 +39,7 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
   g.selectAll('path.link')
     .data(root.links())
     .join('path')
-    .attr('class', 'link')
+    .attr('class', 'link edge-line')
     .attr('d', d3.linkVertical<any, any>()
       .x((d: any) => d.x)
       .y((d: any) => d.y) as any)
@@ -63,6 +63,7 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
     .attr('stroke-width', 1.5);
 
   nodeG.append('text')
+    .attr('class', 'node-label')
     .text((d: any) => d.data.label)
     .attr('font-size', (d: any) => d.depth === 0 ? '13px' : '11px')
     .attr('font-weight', (d: any) => d.depth === 0 ? '600' : '400')
@@ -73,7 +74,7 @@ export function renderTree(svgEl: SVGSVGElement, schema: VisualizationSchema): v
   // Detail cards — glass rect attached horizontally, flip side based on x position
   nodeG.filter((d: any) => (d.data.weight ?? 0.5) >= 0.65 && !!d.data.details)
     .each(function(d: any) {
-      const group = d3.select(this);
+      const group = d3.select(this).append('g').attr('class', 'detail-card');
       const r = nodeRadius(d.data.weight);
       const GAP = 12;
       // Place card to right for left-half nodes, left for right-half nodes
