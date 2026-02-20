@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import * as d3 from 'd3';
   import { renderVisualization } from './renderers';
+  import { animateEntrance } from './renderers/utils';
   import type { VisualizationSchema, VisualizationNode } from '$lib/types';
   import NodeTooltip from './NodeTooltip.svelte';
 
@@ -35,6 +36,7 @@
     svgEl.setAttribute('height', String(rect.height));
     renderVisualization(svgEl, visualization);
     attachNodeEvents();
+    animateEntrance(svgEl);
   }
 
   function attachNodeEvents() {
