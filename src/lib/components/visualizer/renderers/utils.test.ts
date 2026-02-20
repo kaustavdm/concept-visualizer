@@ -136,3 +136,10 @@ describe('truncate', () => {
     expect(truncate('hello', 20)).toBe('hello');
   });
 });
+
+describe('animateEntrance', () => {
+  it('is exported as a function', async () => {
+    const { animateEntrance } = await import('./utils');
+    expect(typeof animateEntrance).toBe('function');
+  });
+});

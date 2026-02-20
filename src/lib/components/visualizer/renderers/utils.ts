@@ -209,3 +209,79 @@ export function edgeSemanticColor(
   if (!entry) return 'var(--viz-edge)';
   return isDark ? entry.dark : entry.light;
 }
+
+// ── Entrance Animation ─────────────────────────────────────────────────
+
+/**
+ * Apply staged entrance animation to an already-rendered SVG.
+ *
+ * Convention: renderers tag their elements with CSS classes:
+ *   .node-shape — node circles/rects
+ *   .edge-line  — edge lines/paths
+ *   .node-label — text labels
+ *   .detail-card — detail card groups
+ *
+ * Phase 1 (0–200ms): nodes fade + scale in
+ * Phase 2 (200–500ms): edges draw in via stroke-dashoffset
+ * Phase 3 (500–700ms): labels fade in
+ * Phase 4 (700–900ms): detail cards slide in
+ */
+export function animateEntrance(svg: SVGSVGElement): void {
+  const nodes = svg.querySelectorAll('.node-shape:not(.glow)');
+  const edges = svg.querySelectorAll('.edge-line');
+  const labels = svg.querySelectorAll('.node-label');
+  const cards = svg.querySelectorAll('.detail-card');
+
+  // Phase 1: nodes
+  nodes.forEach((el) => {
+    const htmlEl = el as SVGElement;
+    htmlEl.style.opacity = '0';
+    htmlEl.style.transform = 'scale(0.8)';
+    htmlEl.style.transition = 'opacity 200ms ease-out, transform 200ms ease-out';
+    requestAnimationFrame(() => {
+      htmlEl.style.opacity = '1';
+      htmlEl.style.transform = 'scale(1)';
+    });
+  });
+
+  // Phase 2: edges
+  edges.forEach((el) => {
+    const pathEl = el as SVGElement;
+    if (pathEl instanceof SVGGeometryElement && typeof pathEl.getTotalLength === 'function') {
+      const length = pathEl.getTotalLength();
+      pathEl.style.strokeDasharray = String(length);
+      pathEl.style.strokeDashoffset = String(length);
+      pathEl.style.transition = `stroke-dashoffset 300ms ease-out 200ms`;
+      requestAnimationFrame(() => {
+        pathEl.style.strokeDashoffset = '0';
+      });
+    } else {
+      // Fallback for <line> elements: fade in
+      pathEl.style.opacity = '0';
+      pathEl.style.transition = 'opacity 300ms ease-out 200ms';
+      requestAnimationFrame(() => {
+        pathEl.style.opacity = '1';
+      });
+    }
+  });
+
+  // Phase 3: labels
+  labels.forEach((el) => {
+    const htmlEl = el as SVGElement;
+    htmlEl.style.opacity = '0';
+    htmlEl.style.transition = 'opacity 200ms ease-out 500ms';
+    requestAnimationFrame(() => {
+      htmlEl.style.opacity = '1';
+    });
+  });
+
+  // Phase 4: detail cards
+  cards.forEach((el) => {
+    const htmlEl = el as SVGElement;
+    htmlEl.style.opacity = '0';
+    htmlEl.style.transition = 'opacity 200ms ease-out 700ms';
+    requestAnimationFrame(() => {
+      htmlEl.style.opacity = '1';
+    });
+  });
+}
