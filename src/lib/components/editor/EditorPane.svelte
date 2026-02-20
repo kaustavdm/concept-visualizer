@@ -3,9 +3,11 @@
   import ConceptDetails from './ConceptDetails.svelte';
   import TextEditor from './TextEditor.svelte';
   import Panel from './Panel.svelte';
+  import StylePanel from './StylePanel.svelte';
   import ExportMenu from '$lib/components/export/ExportMenu.svelte';
-  import { vizStore } from '$lib/stores/visualization';
-  import type { VisualizationSchema, ConceptFile } from '$lib/types';
+  import type { VisualizationSchema, VisualizationType, ConceptFile } from '$lib/types';
+  import type { ExtractionEngineId } from '$lib/extractors/types';
+  import type { PipelineStage, PipelineRecommendation } from '$lib/pipeline/types';
 
   interface Props {
     text: string;
@@ -21,6 +23,12 @@
     focusedNodeId?: string | null;
     zoomLevel?: number;
     embeddedControls?: Snippet;
+    vizType: VisualizationType;
+    engineId: ExtractionEngineId;
+    onVizTypeChange: (type: VisualizationType) => void;
+    onEngineChange: (id: ExtractionEngineId) => void;
+    pipelineStage: PipelineStage;
+    recommendation: PipelineRecommendation | null;
   }
 
   let {
@@ -36,7 +44,13 @@
     onReextract,
     focusedNodeId = null,
     zoomLevel = 1,
-    embeddedControls
+    embeddedControls,
+    vizType,
+    engineId,
+    onVizTypeChange,
+    onEngineChange,
+    pipelineStage,
+    recommendation
   }: Props = $props();
 
   const contextBadge = $derived(
@@ -60,6 +74,17 @@
     </div>
   {/if}
 
+  <Panel title="Visualization" defaultOpen={true}>
+    <StylePanel
+      {vizType}
+      {engineId}
+      {onVizTypeChange}
+      {onEngineChange}
+      {pipelineStage}
+      {recommendation}
+    />
+  </Panel>
+
   {#if embeddedControls}
     <div class="flex-shrink-0">
       {@render embeddedControls()}
@@ -67,18 +92,6 @@
   {/if}
 
   <Panel title="Input" fill>
-    {#if $vizStore.vizType === 'storyboard'}
-      <div class="flex items-center gap-2 px-4 pt-2" style="color: var(--text-tertiary)">
-        <span class="text-xs">Orientation:</span>
-        <button
-          onclick={() => vizStore.setStoryboardOrientation($vizStore.storyboardOrientation === 'horizontal' ? 'vertical' : 'horizontal')}
-          class="text-xs px-2 py-0.5 rounded font-mono border"
-          style="border-color: var(--border); color: var(--text-secondary)"
-        >
-          {$vizStore.storyboardOrientation === 'horizontal' ? 'H' : 'V'}
-        </button>
-      </div>
-    {/if}
     <TextEditor
       {text}
       onchange={onTextChange}
