@@ -172,3 +172,40 @@ export function appendDetailCard(
     .style('fill', 'var(--text-tertiary)')
     .style('pointer-events', 'none');
 }
+
+// ── Logical flow semantic colors ──────────────────────────────────────────
+
+const LOGICAL_ROLE_COLORS: Record<string, { light: string; dark: string }> = {
+  premise:    { light: '#bfdbfe', dark: '#3b82f6' },
+  evidence:   { light: '#e5e7eb', dark: '#6b7280' },
+  inference:  { light: '#fde68a', dark: '#f59e0b' },
+  conclusion: { light: '#bbf7d0', dark: '#22c55e' },
+  objection:  { light: '#fecaca', dark: '#ef4444' },
+};
+
+/** Node fill tint for a logical role, mode-aware. */
+export function logicalRoleColor(
+  role: string | undefined,
+  isDark: boolean
+): string {
+  const entry = role ? LOGICAL_ROLE_COLORS[role] : undefined;
+  if (!entry) return isDark ? '#374151' : '#f3f4f6';
+  return isDark ? entry.dark : entry.light;
+}
+
+const EDGE_SEMANTIC_COLORS: Record<string, { light: string; dark: string }> = {
+  supports:    { light: '#16a34a', dark: '#4ade80' },
+  contradicts: { light: '#dc2626', dark: '#f87171' },
+  derives:     { light: '#2563eb', dark: '#60a5fa' },
+  qualifies:   { light: '#d97706', dark: '#fbbf24' },
+};
+
+/** Edge stroke color for a semantic edge type, mode-aware. Falls back to CSS var. */
+export function edgeSemanticColor(
+  type: string | undefined,
+  isDark: boolean
+): string {
+  const entry = type ? EDGE_SEMANTIC_COLORS[type] : undefined;
+  if (!entry) return 'var(--viz-edge)';
+  return isDark ? entry.dark : entry.light;
+}
