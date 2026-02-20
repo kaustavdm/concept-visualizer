@@ -28,7 +28,11 @@ describe('ConceptDB', () => {
       id: 'app-settings',
       llmEndpoint: 'http://localhost:11434/v1',
       llmModel: 'llama3.2',
-      theme: 'light'
+      theme: 'light',
+      controlPlacement: 'hud',
+      extractionEngine: 'llm',
+      pipelineMode: 'auto',
+      llmRefinement: false
     });
 
     const settings = await db.settings.get('app-settings');
