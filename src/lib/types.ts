@@ -66,6 +66,8 @@ export interface AppSettings {
   theme: 'light' | 'dark';
   controlPlacement: 'hud' | 'dock' | 'embedded';
   extractionEngine: 'llm' | 'nlp' | 'keywords' | 'semantic';
+  pipelineMode: 'auto' | 'manual';
+  llmRefinement: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -74,5 +76,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   llmModel: 'llama3.2',
   theme: 'light',
   controlPlacement: 'hud',
-  extractionEngine: 'llm'
+  extractionEngine: 'llm',
+  pipelineMode: 'auto',
+  llmRefinement: false
 };

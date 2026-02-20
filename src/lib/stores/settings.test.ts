@@ -26,4 +26,11 @@ describe('settingsStore', () => {
     const stored = await db.settings.get('app-settings');
     expect(stored?.llmEndpoint).toBe('http://custom:8080/v1');
   });
+
+  it('should include pipeline defaults', async () => {
+    await settingsStore.init();
+    const settings = get(settingsStore);
+    expect(settings.pipelineMode).toBe('auto');
+    expect(settings.llmRefinement).toBe(false);
+  });
 });
