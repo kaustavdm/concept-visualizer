@@ -11,6 +11,7 @@
   import { focusStore } from '$lib/stores/focus';
   import { createKeyboardController, type PadAction } from '$lib/controllers/keyboard';
   import { createExtractorRegistry } from '$lib/extractors/registry';
+  import { RenderingPipeline, pipelineStore } from '$lib/pipeline';
   import type { ExtractionEngineId } from '$lib/extractors/types';
   import type { ConceptFile, VisualizationType } from '$lib/types';
   import type { PlacementMode } from '$lib/components/controls/PlacementToggle.svelte';
@@ -18,12 +19,6 @@
 
   const VIZ_TYPES: VisualizationType[] = ['graph', 'tree', 'flowchart', 'hierarchy', 'logicalflow', 'storyboard'];
   const ENGINE_ORDER: ExtractionEngineId[] = ['llm', 'nlp', 'keywords', 'semantic'];
-  const ENGINE_LABELS: Record<ExtractionEngineId, string> = {
-    llm: 'LLM',
-    nlp: 'NLP (compromise)',
-    keywords: 'Keywords (RAKE)',
-    semantic: 'Semantic (TF.js)'
-  };
 
   let activeFile: ConceptFile | undefined = $derived(
     $filesStore.files.find(f => f.id === $filesStore.activeFileId)
@@ -44,22 +39,11 @@
   // Cache indicator state
   let isFromCache = $state(false);
 
-  // Engine toast state
-  let engineToast = $state('');
-  let toastTimer: ReturnType<typeof setTimeout> | null = null;
-
-  function showEngineToast(name: string) {
-    engineToast = name;
-    if (toastTimer) clearTimeout(toastTimer);
-    toastTimer = setTimeout(() => { engineToast = ''; }, 2000);
-  }
-
   function cycleEngine() {
     const current = $settingsStore.extractionEngine as ExtractionEngineId;
     const idx = ENGINE_ORDER.indexOf(current);
     const next = ENGINE_ORDER[(idx + 1) % ENGINE_ORDER.length];
     settingsStore.update({ extractionEngine: next });
-    showEngineToast(ENGINE_LABELS[next]);
   }
 
   // Track keyboard controller
@@ -70,6 +54,9 @@
     endpoint: $settingsStore.llmEndpoint,
     model: $settingsStore.llmModel
   });
+
+  // Pipeline orchestrator
+  let pipeline = new RenderingPipeline(registry, () => $settingsStore);
 
   // Update LLM config when settings change
   $effect(() => {
@@ -151,9 +138,16 @@
     const nextIdx = (currentIdx + 1) % VIZ_TYPES.length;
     const nextType = VIZ_TYPES[nextIdx];
     vizStore.setVizType(nextType);
-
-    // Update body data attribute for theming
     document.body.setAttribute('data-viz-type', nextType);
+  }
+
+  function handleVizTypeChange(type: VisualizationType) {
+    vizStore.setVizType(type);
+    document.body.setAttribute('data-viz-type', type);
+  }
+
+  function handleEngineChange(id: ExtractionEngineId) {
+    settingsStore.update({ extractionEngine: id });
   }
 
   onMount(async () => {
@@ -161,8 +155,6 @@
     await filesStore.init();
 
     // Ensure at least one file exists so the editor is immediately usable on fresh install.
-    // Without this, activeFile is undefined → text prop is '' → Visualize button stays
-    // disabled even after typing (handleTextChange silently no-ops with no active file).
     if ($filesStore.files.length === 0) {
       await filesStore.create('Untitled Concept');
     }
@@ -222,12 +214,12 @@
     vizStore.setLoading();
     try {
       const engineId = $settingsStore.extractionEngine as ExtractionEngineId;
-      const engine = registry.getEngine(engineId);
-      const viz = await engine.extract(activeFile.text, vizType);
+      const viz = await pipeline.run(activeFile.text, vizType, engineId);
       vizStore.setVisualization(viz);
       await filesStore.updateVisualization(activeFile.id, viz);
       await filesStore.updateCachedSchema(activeFile.id, vizType, viz, contentHash);
     } catch (err) {
+      if (err instanceof Error && err.message === 'Pipeline aborted') return;
       vizStore.setError(err instanceof Error ? err.message : 'Unknown error');
     }
   }
@@ -331,6 +323,12 @@
       }}
       focusedNodeId={$focusStore.focusedNodeId}
       zoomLevel={$focusStore.zoomLevel}
+      vizType={$vizStore.vizType ?? 'graph'}
+      engineId={$settingsStore.extractionEngine as ExtractionEngineId}
+      onVizTypeChange={handleVizTypeChange}
+      onEngineChange={handleEngineChange}
+      pipelineStage={$pipelineStore.stage}
+      recommendation={$pipelineStore.recommendation}
     >
       {#snippet embeddedControls()}
         {#if controlPlacement === 'embedded'}
@@ -344,14 +342,3 @@
     </EditorPane>
   {/snippet}
 </AppShell>
-
-{#if engineToast}
-  <div
-    class="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 rounded-full text-sm font-medium shadow-lg"
-    style="background: var(--accent, #3b82f6); color: white;"
-    role="status"
-    aria-live="polite"
-  >
-    Engine: {engineToast}
-  </div>
-{/if}
