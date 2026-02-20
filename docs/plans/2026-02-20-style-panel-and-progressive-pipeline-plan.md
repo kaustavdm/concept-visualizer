@@ -8,6 +8,8 @@
 
 **Tech Stack:** SvelteKit 2, Svelte 5 runes, D3.js, vitest, fake-indexeddb
 
+**Constraint — No new dependencies.** Use only what's already in the project: Svelte writable stores (not IndexedDB) for pipeline state, Dexie for any IndexedDB access, D3 for SVG manipulation, native CSS transitions for animation. Do not add libraries.
+
 ---
 
 ### Task 1: Extend AppSettings with Pipeline Fields
