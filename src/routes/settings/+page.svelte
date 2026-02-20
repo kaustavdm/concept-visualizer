@@ -8,6 +8,8 @@
   let theme = $state<'light' | 'dark'>('light');
   let controlPlacement = $state<'hud' | 'dock' | 'embedded'>('hud');
   let extractionEngine = $state<'llm' | 'nlp' | 'keywords' | 'semantic'>('llm');
+  let pipelineMode = $state<'auto' | 'manual'>('auto');
+  let llmRefinement = $state(false);
 
   let pageOrigin = $derived(typeof window !== 'undefined' ? window.location.origin : '');
   let isMixedContent = $derived(
@@ -23,10 +25,12 @@
     theme = $settingsStore.theme;
     controlPlacement = $settingsStore.controlPlacement;
     extractionEngine = $settingsStore.extractionEngine;
+    pipelineMode = $settingsStore.pipelineMode ?? 'auto';
+    llmRefinement = $settingsStore.llmRefinement ?? false;
   });
 
   async function save() {
-    await settingsStore.update({ llmEndpoint: endpoint, llmModel: model, theme, controlPlacement, extractionEngine });
+    await settingsStore.update({ llmEndpoint: endpoint, llmModel: model, theme, controlPlacement, extractionEngine, pipelineMode, llmRefinement });
     goto('/');
   }
 </script>
@@ -83,6 +87,35 @@
         <option value="dark">Dark</option>
       </select>
     </div>
+
+    <div>
+      <label for="pipelineMode" class="block text-sm font-medium mb-1" style="color: var(--text-secondary)">Pipeline Mode</label>
+      <select
+        id="pipelineMode"
+        bind:value={pipelineMode}
+        class="w-full rounded-lg px-3 py-2 text-sm focus:ring-2 focus:border-transparent"
+        style="background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text-primary); --tw-ring-color: var(--accent)"
+      >
+        <option value="auto">Auto (analyze + recommend)</option>
+        <option value="manual">Manual (direct extraction)</option>
+      </select>
+      <p class="text-xs mt-1" style="color: var(--text-muted)">Auto mode analyzes text to recommend the best visualization style.</p>
+    </div>
+
+    {#if pipelineMode === 'auto'}
+      <div>
+        <label class="flex items-center gap-2 text-sm font-medium" style="color: var(--text-secondary)">
+          <input
+            type="checkbox"
+            bind:checked={llmRefinement}
+            class="rounded"
+            style="accent-color: var(--accent)"
+          />
+          LLM Refinement
+        </label>
+        <p class="text-xs mt-1" style="color: var(--text-muted)">Use the LLM to refine the heuristic recommendation (requires running LLM server).</p>
+      </div>
+    {/if}
 
     <div>
       <label for="placement" class="block text-sm font-medium mb-1" style="color: var(--text-secondary)">Control Placement</label>
