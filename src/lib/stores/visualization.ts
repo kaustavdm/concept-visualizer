@@ -6,6 +6,7 @@ interface VizState {
   loading: boolean;
   error: string | null;
   vizType: VisualizationType | null;
+  storyboardOrientation: 'horizontal' | 'vertical';
 }
 
 function createVisualizationStore() {
@@ -13,7 +14,8 @@ function createVisualizationStore() {
     current: null,
     loading: false,
     error: null,
-    vizType: null
+    vizType: null,
+    storyboardOrientation: 'horizontal'
   });
 
   function setLoading() {
@@ -21,7 +23,7 @@ function createVisualizationStore() {
   }
 
   function setVisualization(viz: VisualizationSchema) {
-    set({ current: viz, loading: false, error: null, vizType: viz.type });
+    update(s => ({ ...s, current: viz, loading: false, error: null, vizType: viz.type }));
   }
 
   function setError(error: string) {
@@ -36,11 +38,22 @@ function createVisualizationStore() {
     }));
   }
 
-  function clear() {
-    set({ current: null, loading: false, error: null, vizType: null });
+  function setStoryboardOrientation(orientation: 'horizontal' | 'vertical') {
+    update(s => ({
+      ...s,
+      storyboardOrientation: orientation,
+      current: s.current ? {
+        ...s.current,
+        renderOptions: { ...s.current.renderOptions, orientation }
+      } : null
+    }));
   }
 
-  return { subscribe, setLoading, setVisualization, setError, setVizType, clear };
+  function clear() {
+    set({ current: null, loading: false, error: null, vizType: null, storyboardOrientation: 'horizontal' });
+  }
+
+  return { subscribe, setLoading, setVisualization, setError, setVizType, setStoryboardOrientation, clear };
 }
 
 export const vizStore = createVisualizationStore();

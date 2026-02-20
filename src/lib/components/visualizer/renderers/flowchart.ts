@@ -110,6 +110,7 @@ export function renderFlowchart(svgEl: SVGSVGElement, schema: VisualizationSchem
 
   // Pill-shaped rects
   nodeG.append('rect')
+    .attr('class', 'node-shape')
     .attr('width', NODE_WIDTH)
     .attr('height', NODE_HEIGHT)
     .attr('rx', NODE_HEIGHT / 2)

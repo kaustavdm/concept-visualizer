@@ -36,6 +36,6 @@ describe('LLMExtractor', () => {
     expect(generateVisualization).toHaveBeenCalledWith('some text', {
       endpoint: 'http://custom:1234/v1',
       model: 'custom-model'
-    });
+    }, undefined);
   });
 });

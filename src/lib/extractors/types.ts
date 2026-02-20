@@ -1,9 +1,9 @@
-import type { VisualizationSchema } from '$lib/types';
+import type { VisualizationSchema, VisualizationType } from '$lib/types';
 
 export interface ConceptExtractor {
   id: string;
   name: string;
-  extract(text: string, config?: Record<string, unknown>): Promise<VisualizationSchema>;
+  extract(text: string, vizType?: VisualizationType | null): Promise<VisualizationSchema>;
 }
 
 export type ExtractionEngineId = 'llm' | 'nlp' | 'keywords' | 'semantic';

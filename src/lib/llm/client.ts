@@ -1,6 +1,6 @@
-import { SYSTEM_PROMPT, buildUserPrompt } from './prompts';
+import { buildSystemPrompt, buildUserPrompt } from './prompts';
 import { parseVisualizationResponse } from './parser';
-import type { VisualizationSchema } from '$lib/types';
+import type { VisualizationSchema, VisualizationType } from '$lib/types';
 
 interface LLMClientConfig {
   endpoint: string;
@@ -9,7 +9,8 @@ interface LLMClientConfig {
 
 export async function generateVisualization(
   text: string,
-  config: LLMClientConfig
+  config: LLMClientConfig,
+  vizType?: VisualizationType | null
 ): Promise<VisualizationSchema> {
   const url = config.endpoint.replace(/\/$/, '') + '/chat/completions';
 
@@ -19,7 +20,7 @@ export async function generateVisualization(
     body: JSON.stringify({
       model: config.model,
       messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
+        { role: 'system', content: buildSystemPrompt(vizType) },
         { role: 'user', content: buildUserPrompt(text) }
       ],
       temperature: 0.3,

@@ -63,6 +63,7 @@ export function renderHierarchy(svgEl: SVGSVGElement, schema: VisualizationSchem
     });
 
   nodeG.append('circle')
+    .attr('class', 'node-shape')
     .attr('r', (d: any) => nodeRadius(d.data.weight))
     .style('fill', (d: any) => hexToRgba(themeColor(d.data.theme), 0.82))
     .style('stroke', (d: any) => themeColor(d.data.theme))

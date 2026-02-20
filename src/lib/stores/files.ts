@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { v4 as uuid } from 'uuid';
 import { db } from '$lib/db';
-import type { ConceptFile, VisualizationSchema } from '$lib/types';
+import type { ConceptFile, VisualizationSchema, VisualizationType } from '$lib/types';
 
 interface FilesState {
   files: ConceptFile[];
@@ -94,6 +94,41 @@ function createFilesStore() {
     }));
   }
 
+  async function updateCachedSchema(
+    id: string,
+    vizType: VisualizationType,
+    schema: VisualizationSchema,
+    contentHash: string
+  ) {
+    await db.files.where('id').equals(id).modify((file: ConceptFile) => {
+      if (!file.cachedSchemas) file.cachedSchemas = {};
+      file.cachedSchemas[vizType] = { schema, contentHash };
+    });
+    update(s => ({
+      ...s,
+      files: s.files.map(f => {
+        if (f.id !== id) return f;
+        const cachedSchemas = { ...(f.cachedSchemas ?? {}), [vizType]: { schema, contentHash } };
+        return { ...f, cachedSchemas };
+      })
+    }));
+  }
+
+  async function clearCachedSchema(id: string, vizType: VisualizationType) {
+    await db.files.where('id').equals(id).modify((file: ConceptFile) => {
+      if (file.cachedSchemas) delete file.cachedSchemas[vizType];
+    });
+    update(s => ({
+      ...s,
+      files: s.files.map(f => {
+        if (f.id !== id) return f;
+        const cachedSchemas = { ...(f.cachedSchemas ?? {}) };
+        delete cachedSchemas[vizType];
+        return { ...f, cachedSchemas };
+      })
+    }));
+  }
+
   function setActive(id: string) {
     update(s => ({ ...s, activeFileId: id }));
   }
@@ -107,6 +142,8 @@ function createFilesStore() {
     updateText,
     updateVisualization,
     updateSettings,
+    updateCachedSchema,
+    clearCachedSchema,
     setActive
   };
 }

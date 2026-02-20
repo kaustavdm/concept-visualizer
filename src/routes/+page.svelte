@@ -14,8 +14,9 @@
   import type { ExtractionEngineId } from '$lib/extractors/types';
   import type { ConceptFile, VisualizationType } from '$lib/types';
   import type { PlacementMode } from '$lib/components/controls/PlacementToggle.svelte';
+  import { hashContent } from '$lib/utils/hash';
 
-  const VIZ_TYPES: VisualizationType[] = ['graph', 'tree', 'flowchart', 'hierarchy'];
+  const VIZ_TYPES: VisualizationType[] = ['graph', 'tree', 'flowchart', 'hierarchy', 'logicalflow', 'storyboard'];
   const ENGINE_ORDER: ExtractionEngineId[] = ['llm', 'nlp', 'keywords', 'semantic'];
   const ENGINE_LABELS: Record<ExtractionEngineId, string> = {
     llm: 'LLM',
@@ -39,6 +40,9 @@
   // Zoom command state for canvas
   let zoomTick = $state(0);
   let zoomDelta = $state(1.2);
+
+  // Cache indicator state
+  let isFromCache = $state(false);
 
   // Engine toast state
   let engineToast = $state('');
@@ -204,16 +208,36 @@
   async function handleVisualize() {
     if (!activeFile || !activeFile.text.trim()) return;
 
+    const vizType = $vizStore.vizType ?? 'graph';
+    const contentHash = hashContent(activeFile.text);
+    const cached = activeFile.cachedSchemas?.[vizType];
+
+    if (cached && cached.contentHash === contentHash) {
+      isFromCache = true;
+      vizStore.setVisualization(cached.schema);
+      return;
+    }
+
+    isFromCache = false;
     vizStore.setLoading();
     try {
       const engineId = $settingsStore.extractionEngine as ExtractionEngineId;
       const engine = registry.getEngine(engineId);
-      const viz = await engine.extract(activeFile.text);
+      const viz = await engine.extract(activeFile.text, vizType);
       vizStore.setVisualization(viz);
       await filesStore.updateVisualization(activeFile.id, viz);
+      await filesStore.updateCachedSchema(activeFile.id, vizType, viz, contentHash);
     } catch (err) {
       vizStore.setError(err instanceof Error ? err.message : 'Unknown error');
     }
+  }
+
+  async function handleReextract() {
+    if (!activeFile) return;
+    const vizType = $vizStore.vizType ?? 'graph';
+    await filesStore.clearCachedSchema(activeFile.id, vizType);
+    isFromCache = false;
+    await handleVisualize();
   }
 
   function handleTextChange(text: string) {
@@ -298,6 +322,8 @@
       file={activeFile}
       onTextChange={handleTextChange}
       onVisualize={handleVisualize}
+      {isFromCache}
+      onReextract={handleReextract}
       onAutoSendToggle={(enabled) => {
         if (activeFile) {
           filesStore.updateSettings(activeFile.id, { autoSend: enabled });

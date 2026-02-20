@@ -4,6 +4,7 @@
   import TextEditor from './TextEditor.svelte';
   import Panel from './Panel.svelte';
   import ExportMenu from '$lib/components/export/ExportMenu.svelte';
+  import { vizStore } from '$lib/stores/visualization';
   import type { VisualizationSchema, ConceptFile } from '$lib/types';
 
   interface Props {
@@ -15,6 +16,8 @@
     onTextChange: (text: string) => void;
     onVisualize: () => void;
     onAutoSendToggle: (enabled: boolean) => void;
+    isFromCache?: boolean;
+    onReextract?: () => void;
     focusedNodeId?: string | null;
     zoomLevel?: number;
     embeddedControls?: Snippet;
@@ -29,6 +32,8 @@
     onTextChange,
     onVisualize,
     onAutoSendToggle,
+    isFromCache = false,
+    onReextract,
     focusedNodeId = null,
     zoomLevel = 1,
     embeddedControls
@@ -62,6 +67,18 @@
   {/if}
 
   <Panel title="Input" fill>
+    {#if $vizStore.vizType === 'storyboard'}
+      <div class="flex items-center gap-2 px-4 pt-2" style="color: var(--text-tertiary)">
+        <span class="text-xs">Orientation:</span>
+        <button
+          onclick={() => vizStore.setStoryboardOrientation($vizStore.storyboardOrientation === 'horizontal' ? 'vertical' : 'horizontal')}
+          class="text-xs px-2 py-0.5 rounded font-mono border"
+          style="border-color: var(--border); color: var(--text-secondary)"
+        >
+          {$vizStore.storyboardOrientation === 'horizontal' ? 'H' : 'V'}
+        </button>
+      </div>
+    {/if}
     <TextEditor
       {text}
       onchange={onTextChange}
@@ -70,6 +87,8 @@
       {autoSend}
       {onAutoSendToggle}
       {file}
+      {isFromCache}
+      {onReextract}
     />
   </Panel>
 </div>

@@ -1,5 +1,5 @@
 import { generateVisualization } from '$lib/llm/client';
-import type { VisualizationSchema } from '$lib/types';
+import type { VisualizationSchema, VisualizationType } from '$lib/types';
 import type { ConceptExtractor } from './types';
 
 interface LLMConfig {
@@ -17,8 +17,8 @@ export class LLMExtractor implements ConceptExtractor {
     this.config = config;
   }
 
-  async extract(text: string): Promise<VisualizationSchema> {
-    return generateVisualization(text, this.config);
+  async extract(text: string, vizType?: VisualizationType | null): Promise<VisualizationSchema> {
+    return generateVisualization(text, this.config, vizType);
   }
 
   /** Update config (e.g. when settings change) */

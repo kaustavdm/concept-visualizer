@@ -40,8 +40,8 @@
   function attachNodeEvents() {
     if (!visualization) return;
     const containerRect = containerEl.getBoundingClientRect();
-    // Support circle (graph/tree/hierarchy, excluding glow rings) and rect (flowchart)
-    const nodeElements = svgEl.querySelectorAll('circle:not(.glow), g.node rect');
+    // Unified selector: all renderers mark their interactive shapes with node-shape class
+    const nodeElements = svgEl.querySelectorAll('.node-shape:not(.glow)');
 
     nodeElements.forEach((el) => {
       const dataEl = el.closest('g.node') || el;

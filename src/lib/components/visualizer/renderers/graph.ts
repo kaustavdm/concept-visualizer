@@ -73,6 +73,7 @@ export function renderGraph(svgEl: SVGSVGElement, schema: VisualizationSchema): 
     .selectAll('circle:not(.glow)')
     .data(nodes)
     .join('circle')
+    .attr('class', 'node-shape')
     .attr('r', d => nodeRadius(d.weight))
     .style('fill', d => hexToRgba(themeColor(d.theme), 0.82))
     .style('stroke', d => themeColor(d.theme))
