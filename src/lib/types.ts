@@ -1,14 +1,22 @@
-export type VisualizationType = 'graph' | 'tree' | 'flowchart' | 'hierarchy';
+export type VisualizationType =
+  | 'graph' | 'tree' | 'flowchart' | 'hierarchy'
+  | 'logicalflow' | 'storyboard';
 
 export type NarrativeRole = 'central' | 'supporting' | 'contextual' | 'outcome';
+
+export type LogicalRole = 'premise' | 'inference' | 'conclusion' | 'evidence' | 'objection';
+
+export type StoryRole = 'scene' | 'event' | 'conflict' | 'resolution';
 
 export interface VisualizationNode {
   id: string;
   label: string;
   details?: string;
-  weight?: number;        // 0–1 importance/centrality → node size
-  theme?: string;         // cluster label → color family
+  weight?: number;
+  theme?: string;
   narrativeRole?: NarrativeRole;
+  logicalRole?: LogicalRole;
+  storyRole?: StoryRole;
 }
 
 export interface VisualizationEdge {
@@ -16,7 +24,7 @@ export interface VisualizationEdge {
   target: string;
   label?: string;
   type?: string;
-  strength?: number;      // 0–1 relationship strength → line thickness
+  strength?: number;
 }
 
 export interface VisualizationSchema {
@@ -28,6 +36,9 @@ export interface VisualizationSchema {
   metadata: {
     concepts: string[];
     relationships: string[];
+  };
+  renderOptions?: {
+    orientation?: 'horizontal' | 'vertical';
   };
 }
 
@@ -42,10 +53,14 @@ export interface ConceptFile {
     autoSend: boolean;
     vizType?: VisualizationType;
   };
+  cachedSchemas?: Partial<Record<VisualizationType, {
+    schema: VisualizationSchema;
+    contentHash: string;
+  }>>;
 }
 
 export interface AppSettings {
-  id: string;           // singleton key, always 'app-settings'
+  id: string;
   llmEndpoint: string;
   llmModel: string;
   theme: 'light' | 'dark';
