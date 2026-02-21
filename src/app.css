@@ -133,3 +133,8 @@ body {
   font-family: var(--font-main);
   background: var(--canvas-bg);
 }
+
+/* SVG dial buttons use color/glow for feedback; suppress Chrome's focus outline */
+[role="toolbar"] [role="button"]:focus {
+  outline: none;
+}

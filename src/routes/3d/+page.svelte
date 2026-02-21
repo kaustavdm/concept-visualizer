@@ -14,6 +14,8 @@
   let compassAngle = $state(0);
   let dialActivateFace: string | null = $state(null);
   let dialActivateCenter = $state(false);
+  let dialActivateOption: number | null = $state(null);
+  let dialDismiss = $state(false);
   let keyActiveActions = $state(new Set<string>());
   let dialSelections = $state<Record<string, string>>({
     theme: 'light',
@@ -58,6 +60,12 @@
   // Keyboard: continuous hold for WASD/ZX, F for fullscreen, H for hide controls
   function handleKeyDown(e: KeyboardEvent) {
     if (e.repeat) return;
+
+    if (e.key === 'Escape') {
+      dialDismiss = true;
+      requestAnimationFrame(() => { dialDismiss = false; });
+      return;
+    }
 
     if (e.key.toLowerCase() === 'f') {
       if (document.fullscreenElement) {
@@ -121,6 +129,14 @@
       requestAnimationFrame(() => { dialActivateCenter = false; });
       return;
     }
+
+    // Number keys 1-9: select fan-out option by index
+    const num = parseInt(e.key);
+    if (num >= 1 && num <= 9) {
+      dialActivateOption = num - 1;
+      requestAnimationFrame(() => { dialActivateOption = null; });
+      return;
+    }
   }
 
   function handleKeyUp(e: KeyboardEvent) {
@@ -167,7 +183,9 @@
 
   function handleDialSelect(faceId: string, optionId: string) {
     dialSelections = { ...dialSelections, [faceId]: optionId };
-    if (faceId === 'camera') {
+    if (faceId === 'theme') {
+      settingsStore.update({ theme: optionId as 'light' | 'dark' });
+    } else if (faceId === 'camera') {
       scene?.setCameraMode(optionId as CameraMode);
       cameraMode = optionId as CameraMode;
     }
@@ -204,6 +222,8 @@
       onToggle={handleDialToggle}
       activateFace={dialActivateFace}
       activateCenter={dialActivateCenter}
+      activateOptionIndex={dialActivateOption}
+      dismiss={dialDismiss}
     />
   {/if}
 </div>

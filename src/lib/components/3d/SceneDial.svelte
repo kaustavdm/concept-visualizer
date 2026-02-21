@@ -1,13 +1,17 @@
 <script lang="ts">
+  import { untrack } from 'svelte';
+
   interface Props {
     selections: Record<string, string>;
     onSelect: (faceId: string, optionId: string) => void;
     onToggle: (faceId: string) => void;
     activateFace?: string | null;
     activateCenter?: boolean;
+    activateOptionIndex?: number | null;
+    dismiss?: boolean;
   }
 
-  let { selections, onSelect, onToggle, activateFace = null, activateCenter = false }: Props = $props();
+  let { selections, onSelect, onToggle, activateFace = null, activateCenter = false, activateOptionIndex = null, dismiss = false }: Props = $props();
 
   let openFace: string | null = $state(null);
   let lastInteracted: string = $state('theme');
@@ -30,8 +34,11 @@
       iconPos: { x: 80, y: 38 },
       fanAngle: 270,
       edgeMidpoint: { x: 80, y: 17.6 },
-      isToggle: true,
-      options: [] as { id: string; label: string }[],
+      isToggle: false,
+      options: [
+        { id: 'light', label: 'Light' },
+        { id: 'dark', label: 'Dark' },
+      ],
       iconPath: 'M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z',
     },
     {
@@ -174,18 +181,21 @@
     }
   }
 
+  // Fixed upper-left arc so fan options never clip off-screen
   function getFanPositions(face: (typeof FACES)[number]) {
-    const { edgeMidpoint, fanAngle, options } = face;
+    const { options } = face;
     const count = options.length;
-    const spreadDeg = 25;
+    const anchor = { x: 26, y: 48 };  // upper-left edge of hex
+    const centerAngle = 210;           // fans toward upper-left
+    const spreadDeg = 42;
+    const dist = 60;
     return options.map((opt, i) => {
-      const angleDeg = fanAngle + (i - (count - 1) / 2) * spreadDeg;
+      const angleDeg = centerAngle + (i - (count - 1) / 2) * spreadDeg;
       const angleRad = (angleDeg * Math.PI) / 180;
-      const dist = 44;
       return {
         ...opt,
-        x: edgeMidpoint.x + dist * Math.cos(angleRad),
-        y: edgeMidpoint.y + dist * Math.sin(angleRad),
+        x: anchor.x + dist * Math.cos(angleRad),
+        y: anchor.y + dist * Math.sin(angleRad),
       };
     });
   }
@@ -226,23 +236,50 @@
     openFaceData ? getFanPositions(openFaceData) : []
   );
 
-  // React to keyboard-triggered face activation from the page
+  // React to keyboard-triggered face activation from the page.
+  // MUST use untrack: handleFaceClick reads openFace, and writing openFace
+  // would re-trigger this effect while activateFace is still set, causing
+  // an immediate open→close cycle. (Same class of bug as $effect + $state read/write.)
   $effect(() => {
     if (activateFace) {
       const face = FACES.find((f) => f.id === activateFace);
-      if (face) handleFaceClick(face);
+      if (face) untrack(() => handleFaceClick(face));
     }
   });
 
-  // React to center key (L): cycle to next option in open fan, or show last-interacted face
+  // React to center key (L): cycle to next option in open fan
   $effect(() => {
     if (!activateCenter) return;
-    if (openFaceData && openFaceData.options.length > 0) {
-      const currentSel = selections[openFaceData.id];
-      const idx = openFaceData.options.findIndex((o) => o.id === currentSel);
-      const nextIdx = (idx + 1) % openFaceData.options.length;
-      handleOptionClick(openFaceData.id, openFaceData.options[nextIdx].id);
-    }
+    untrack(() => {
+      if (openFaceData && openFaceData.options.length > 0) {
+        const currentSel = selections[openFaceData.id];
+        const idx = openFaceData.options.findIndex((o) => o.id === currentSel);
+        const nextIdx = (idx + 1) % openFaceData.options.length;
+        handleOptionClick(openFaceData.id, openFaceData.options[nextIdx].id);
+      }
+    });
+  });
+
+  // React to number key (1-9): select nth option in open fan
+  $effect(() => {
+    if (activateOptionIndex == null) return;
+    const idx = activateOptionIndex;
+    untrack(() => {
+      if (openFaceData && idx < openFaceData.options.length) {
+        handleOptionClick(openFaceData.id, openFaceData.options[idx].id);
+      }
+    });
+  });
+
+  // Dismiss: close open fan
+  $effect(() => {
+    if (!dismiss) return;
+    untrack(() => {
+      if (openFace) {
+        openFace = null;
+        fanVisible = false;
+      }
+    });
   });
 
   const HEX_POINTS = '152,80 116,142.4 44,142.4 8,80 44,17.6 116,17.6';

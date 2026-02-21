@@ -166,6 +166,7 @@ export function createScene(
 
   let lookAtActive = false;
   let lookAtT = 0;
+  let lookAtDuration = 0.3;
   const lookAtStartRot = new pc.Quat();
   const lookAtEndRot = new pc.Quat();
 
@@ -181,9 +182,10 @@ export function createScene(
     tPitch = pitch;
   }
 
-  function startLookAt() {
+  function startLookAt(duration = 1.0) {
     lookAtActive = true;
     lookAtT = 0;
+    lookAtDuration = duration;
     lookAtStartRot.copy(camera.getRotation());
     // Temporarily point camera at origin to capture target rotation
     const savedRot = camera.getRotation().clone();
@@ -219,14 +221,15 @@ export function createScene(
     if (effectiveMode !== prevEffectiveMode) {
       if (effectiveMode === 'orbit') {
         syncOrbitFromCamera();
+        startLookAt(1.0); // smoothly rotate toward origin over 1s
       }
       // orbit→fly needs no sync: fly reads camera position directly
       prevEffectiveMode = effectiveMode;
     }
 
-    // Smooth look-at-origin animation
+    // Smooth look-at-origin animation (used by manual lookAt + mode transitions)
     if (lookAtActive) {
-      lookAtT = Math.min(1, lookAtT + dt / 0.3);
+      lookAtT = Math.min(1, lookAtT + dt / lookAtDuration);
       const t = 1 - Math.pow(1 - lookAtT, 3); // ease-out cubic
       const q = new pc.Quat();
       q.slerp(lookAtStartRot, lookAtEndRot, t);
@@ -238,13 +241,13 @@ export function createScene(
     }
 
     if (effectiveMode === 'orbit') {
-      updateOrbit(dt, bobY);
+      updateOrbit(dt, bobY, lookAtActive);
     } else {
       updateFly(dt);
     }
   });
 
-  function updateOrbit(dt: number, bobY: number) {
+  function updateOrbit(dt: number, bobY: number, slerping = false) {
     const panSpeed = 80 * dt;
     const zoomSpeed = 4 * dt;
 
@@ -285,7 +288,10 @@ export function createScene(
     const cz = dist * Math.cos(pr) * Math.cos(yr);
 
     camera.setPosition(cx, cy, cz);
-    camera.lookAt(new pc.Vec3(0, bobY * 0.5, 0));
+    // During slerp transition, let the slerp handle rotation
+    if (!slerping) {
+      camera.lookAt(new pc.Vec3(0, bobY * 0.5, 0));
+    }
   }
 
   function updateFly(dt: number) {
