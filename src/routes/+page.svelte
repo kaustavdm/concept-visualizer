@@ -150,28 +150,30 @@
     settingsStore.update({ extractionEngine: id });
   }
 
-  onMount(async () => {
-    await settingsStore.init();
-    await filesStore.init();
+  onMount(() => {
+    (async () => {
+      await settingsStore.init();
+      await filesStore.init();
 
-    // Ensure at least one file exists so the editor is immediately usable on fresh install.
-    if ($filesStore.files.length === 0) {
-      await filesStore.create('Untitled Concept');
-    }
+      // Ensure at least one file exists so the editor is immediately usable on fresh install.
+      if ($filesStore.files.length === 0) {
+        await filesStore.create('Untitled Concept');
+      }
 
-    controlPlacement = $settingsStore.controlPlacement ?? 'hud';
+      controlPlacement = $settingsStore.controlPlacement ?? 'hud';
 
-    // Set initial viz type
-    if ($vizStore.vizType) {
-      document.body.setAttribute('data-viz-type', $vizStore.vizType);
-    }
+      // Set initial viz type
+      if ($vizStore.vizType) {
+        document.body.setAttribute('data-viz-type', $vizStore.vizType);
+      }
 
-    // Set up keyboard controller
-    kbController = createKeyboardController({
-      onAction: handleAction,
-      isTextInputFocused
-    });
-    kbController.attach();
+      // Set up keyboard controller
+      kbController = createKeyboardController({
+        onAction: handleAction,
+        isTextInputFocused
+      });
+      kbController.attach();
+    })();
 
     return () => {
       kbController?.detach();

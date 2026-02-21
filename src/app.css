@@ -38,14 +38,16 @@
   --viz-flowchart-stroke-decision: #d97706;
 
   /* Glass surfaces */
-  --glass-bg: rgba(255, 255, 255, 0.5);
-  --glass-border: rgba(255, 255, 255, 0.2);
-  --glass-bg-hover: rgba(255, 255, 255, 0.6);
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-border: rgba(0, 0, 0, 0.18);
+  --glass-bg-hover: rgba(255, 255, 255, 0.75);
 
   /* Pad button */
-  --pad-btn-bg: rgba(255, 255, 255, 0.3);
-  --pad-btn-bg-hover: rgba(255, 255, 255, 0.6);
-  --pad-btn-bg-active: rgba(59, 130, 246, 0.2);
+  --pad-btn-bg: rgba(0, 0, 0, 0.1);
+  --pad-btn-bg-hover: rgba(0, 0, 0, 0.18);
+  --pad-btn-bg-active: rgba(59, 130, 246, 0.35);
+  --pad-icon: #334155;
+  --pad-icon-muted: #64748b;
 }
 
 /* Viz type accent overrides - applied via data attribute on body */
@@ -103,11 +105,14 @@
   --viz-flowchart-stroke: #60a5fa;
   --viz-flowchart-stroke-decision: #fbbf24;
 
-  --glass-bg: rgba(0, 0, 0, 0.4);
-  --glass-border: rgba(255, 255, 255, 0.1);
-  --glass-bg-hover: rgba(0, 0, 0, 0.5);
-  --pad-btn-bg: rgba(255, 255, 255, 0.1);
-  --pad-btn-bg-hover: rgba(255, 255, 255, 0.2);
+  --glass-bg: rgba(0, 0, 0, 0.55);
+  --glass-border: rgba(255, 255, 255, 0.25);
+  --glass-bg-hover: rgba(0, 0, 0, 0.65);
+  --pad-btn-bg: rgba(255, 255, 255, 0.18);
+  --pad-btn-bg-hover: rgba(255, 255, 255, 0.3);
+  --pad-btn-bg-active: rgba(59, 130, 246, 0.4);
+  --pad-icon: #e2e8f0;
+  --pad-icon-muted: #94a3b8;
 }
 
 /* Dark mode accent overrides per viz type */
