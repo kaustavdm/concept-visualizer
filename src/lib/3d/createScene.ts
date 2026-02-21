@@ -98,6 +98,103 @@ export function createScene(
   sphere.setLocalScale(1.5, 1.5, 1.5);
   app.root.addChild(sphere);
 
+  // --- Pyramid (sandy, at 10,0,0) ---
+  const pyramidMat = new pc.StandardMaterial();
+  pyramidMat.diffuse = new pc.Color(0.76, 0.70, 0.50);
+  pyramidMat.emissive = new pc.Color(0.06, 0.05, 0.03);
+  pyramidMat.specular = new pc.Color(0.4, 0.35, 0.25);
+  pyramidMat.metalness = 0.1;
+  pyramidMat.gloss = 0.4;
+  pyramidMat.useMetalness = true;
+  pyramidMat.update();
+
+  const pyramidMesh = pc.Mesh.fromGeometry(
+    app.graphicsDevice,
+    new pc.ConeGeometry({ baseRadius: 1, peakRadius: 0, height: 2, heightSegments: 1, capSegments: 4 }),
+  );
+  const pyramid = new pc.Entity('pyramid');
+  pyramid.addComponent('render', {
+    meshInstances: [new pc.MeshInstance(pyramidMesh, pyramidMat)],
+  });
+  pyramid.setPosition(10, 0, 0);
+  pyramid.setLocalEulerAngles(0, 45, 0); // rotate so flat face is forward
+  app.root.addChild(pyramid);
+
+  // --- Silver moon (orbits blue sphere) ---
+  const BLUE_SPHERE_RADIUS = 0.75; // half of scale 1.5
+  const moonScale = 1.5 / 10;     // 1/10th the blue sphere
+  const orbitA = 5.4;              // semi-major axis
+  const orbitB = 3.6;              // semi-minor axis — avg = (5.4+3.6)/2 = 4.5 = 6×0.75
+
+  const moonMat = new pc.StandardMaterial();
+  moonMat.diffuse = new pc.Color(0.75, 0.75, 0.78);
+  moonMat.emissive = new pc.Color(0.04, 0.04, 0.05);
+  moonMat.specular = new pc.Color(0.9, 0.9, 0.92);
+  moonMat.metalness = 0.6;
+  moonMat.gloss = 0.85;
+  moonMat.useMetalness = true;
+  moonMat.update();
+
+  const moon = new pc.Entity('moon');
+  moon.addComponent('render', { type: 'sphere' });
+  moon.render!.meshInstances[0].material = moonMat;
+  moon.setLocalScale(moonScale, moonScale, moonScale);
+  app.root.addChild(moon);
+
+  // --- Grid Floor ---
+  const GRID_SIZE = 512;
+  const GRID_CELLS = 16;
+  const gridCanvas = document.createElement('canvas');
+  gridCanvas.width = GRID_SIZE;
+  gridCanvas.height = GRID_SIZE;
+  const gridCtx = gridCanvas.getContext('2d')!;
+  gridCtx.clearRect(0, 0, GRID_SIZE, GRID_SIZE);
+
+  // Draw grid lines with full alpha on transparent background
+  gridCtx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
+  gridCtx.lineWidth = 1.5;
+  const cellPx = GRID_SIZE / GRID_CELLS;
+  for (let i = 0; i <= GRID_CELLS; i++) {
+    const p = i * cellPx;
+    gridCtx.beginPath();
+    gridCtx.moveTo(p, 0);
+    gridCtx.lineTo(p, GRID_SIZE);
+    gridCtx.stroke();
+    gridCtx.beginPath();
+    gridCtx.moveTo(0, p);
+    gridCtx.lineTo(GRID_SIZE, p);
+    gridCtx.stroke();
+  }
+
+  const gridTexture = new pc.Texture(app.graphicsDevice, {
+    width: GRID_SIZE,
+    height: GRID_SIZE,
+    format: pc.PIXELFORMAT_RGBA8,
+    addressU: pc.ADDRESS_REPEAT,
+    addressV: pc.ADDRESS_REPEAT,
+    minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+    magFilter: pc.FILTER_LINEAR,
+    anisotropy: 8,
+  });
+  gridTexture.setSource(gridCanvas);
+
+  const gridMat = new pc.StandardMaterial();
+  gridMat.diffuse = new pc.Color(0.5, 0.5, 0.55);
+  gridMat.opacityMap = gridTexture;
+  gridMat.opacityMapChannel = 'a';
+  gridMat.opacityMapTiling = new pc.Vec2(4, 4);
+  gridMat.blendType = pc.BLEND_NORMAL;
+  gridMat.cull = pc.CULLFACE_NONE;
+  gridMat.depthWrite = false;
+  gridMat.update();
+
+  const floor = new pc.Entity('floor');
+  floor.addComponent('render', { type: 'plane' });
+  floor.render!.meshInstances[0].material = gridMat;
+  floor.setLocalScale(80, 1, 80);
+  floor.setPosition(0, -1, 0);
+  app.root.addChild(floor);
+
   // --- Ambient ---
   app.scene.ambientLight = theme.ambient;
 
@@ -209,6 +306,14 @@ export function createScene(
     const bobY = Math.sin(time * 0.8) * 0.25;
     sphere.setPosition(0, bobY, 0);
     sphere.setLocalEulerAngles(0, time * 12, Math.sin(time * 0.5) * 5);
+
+    // Moon — elliptical orbit around the blue sphere, tilted 45° from grid
+    const orbitAngle = time * 0.6; // ~10s per revolution
+    const tilt = Math.PI / 4; // 45 degrees
+    const moonX = Math.cos(orbitAngle) * orbitA;
+    const moonY = Math.sin(orbitAngle) * orbitB * Math.sin(tilt);
+    const moonZ = Math.sin(orbitAngle) * orbitB * Math.cos(tilt);
+    moon.setPosition(moonX, bobY + moonY, moonZ);
 
     // Shift temporarily activates the other mode
     const effectiveMode = input.shift
