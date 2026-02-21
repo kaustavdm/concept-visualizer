@@ -3,12 +3,14 @@
   import { settingsStore } from '$lib/stores/settings';
   import { createScene, type SceneController, type CameraMode } from '$lib/3d/createScene';
   import MovementDial from '$lib/components/3d/MovementDial.svelte';
-  import SceneDial from '$lib/components/3d/SceneDial.svelte';
+  import HexagonDial from '$lib/components/3d/HexagonDial.svelte';
+  import { SCENE_BAY, APP_BAY, DEFAULT_SELECTIONS } from '$lib/components/3d/hexagon-dial-bays';
 
   let canvas: HTMLCanvasElement;
   let scene: SceneController | null = $state(null);
   let cameraMode: CameraMode = $state('orbit');
   let theme: 'light' | 'dark' = $state('light');
+  let themeMode: 'system' | 'light' | 'dark' = $state('system');
   let shiftHeld = $state(false);
   let controlsVisible = $state(true);
   let compassAngle = $state(0);
@@ -17,31 +19,56 @@
   let dialActivateOption: number | null = $state(null);
   let dialDismiss = $state(false);
   let keyActiveActions = $state(new Set<string>());
-  let dialSelections = $state<Record<string, string>>({
-    theme: 'light',
-    lighting: 'studio',
-    environment: 'void',
-    objects: 'all',
-    camera: 'orbit',
-    effects: 'none',
-  });
+
+  function resolveSystemTheme(): 'light' | 'dark' {
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+
+  function applyTheme(resolved: 'light' | 'dark') {
+    theme = resolved;
+    scene?.setTheme(resolved);
+    document.documentElement.setAttribute('data-theme', resolved);
+    settingsStore.update({ theme: resolved });
+  }
+
+  // Multi-bay state
+  const dialBays = [SCENE_BAY, APP_BAY];
+  let activeBayIndex = $state(0);
+  let dialHasFanOpen = $state(false);
+  let dialSelections = $state<Record<string, string>>({ ...DEFAULT_SELECTIONS });
+
+  // Dynamic key map: position keys → face IDs for the active bay
+  const POSITION_KEYS = ['o', ';', '.', ',', 'm', 'k'];
+  let dialKeyMap = $derived(
+    Object.fromEntries(POSITION_KEYS.map((key, i) => [key, dialBays[activeBayIndex].faces[i].id]))
+  );
 
   onMount(() => {
-    const s = createScene(canvas, theme);
+    // Resolve initial theme: default to system detection
+    const initialTheme = resolveSystemTheme();
+    applyTheme(initialTheme);
+
+    const s = createScene(canvas, initialTheme);
     scene = s;
 
-    // Subscribe to settings store inside onMount (NOT $effect) to avoid
-    // infinite loop: the callback reads+writes dialSelections, and $effect
-    // would track that read as a dependency, causing re-execution on every write.
+    // Listen for OS dark/light preference changes (only applies in system mode)
+    const mql = window.matchMedia('(prefers-color-scheme: dark)');
+    function onSystemChange() {
+      if (themeMode === 'system') {
+        applyTheme(resolveSystemTheme());
+      }
+    }
+    mql.addEventListener('change', onSystemChange);
+
+    // Sync from settings store — only update if not in system mode
     const unsub = settingsStore.subscribe((settings) => {
-      theme = settings.theme;
-      s.setTheme(settings.theme);
-      document.documentElement.setAttribute('data-theme', settings.theme);
-      dialSelections = { ...dialSelections, theme: settings.theme };
+      if (themeMode !== 'system') {
+        theme = settings.theme;
+        s.setTheme(settings.theme);
+        document.documentElement.setAttribute('data-theme', settings.theme);
+      }
     });
 
-    // Poll compass angle using captured `s` reference (not the reactive signal)
-    // to avoid stale closure issues with $state inside rAF callbacks
     let raf: number;
     function tick() {
       compassAngle = s.getCompassAngle();
@@ -50,6 +77,7 @@
     raf = requestAnimationFrame(tick);
 
     return () => {
+      mql.removeEventListener('change', onSystemChange);
       unsub();
       cancelAnimationFrame(raf);
       s.destroy();
@@ -57,7 +85,6 @@
     };
   });
 
-  // Keyboard: continuous hold for WASD/ZX, F for fullscreen, H for hide controls
   function handleKeyDown(e: KeyboardEvent) {
     if (e.repeat) return;
 
@@ -108,31 +135,24 @@
       return;
     }
 
-    // SceneDial face shortcuts
-    const dialMap: Record<string, string> = {
-      o: 'theme',
-      ';': 'lighting',
-      '.': 'environment',
-      ',': 'objects',
-      m: 'camera',
-      k: 'effects',
-    };
-    const face = dialMap[e.key.toLowerCase()];
+    // HexagonDial face shortcuts — derived from active bay
+    const face = dialKeyMap[e.key.toLowerCase()];
     if (face) {
       dialActivateFace = face;
-      // Reset after a tick so the effect fires again for repeated presses
       requestAnimationFrame(() => { dialActivateFace = null; });
       return;
     }
+
+    // L key: switch bay (center action)
     if (e.key.toLowerCase() === 'l') {
       dialActivateCenter = true;
       requestAnimationFrame(() => { dialActivateCenter = false; });
       return;
     }
 
-    // Number keys 1-9: select fan-out option by index
+    // Number keys 1-9: select fan-out option by index (only when fan is open)
     const num = parseInt(e.key);
-    if (num >= 1 && num <= 9) {
+    if (num >= 1 && num <= 9 && dialHasFanOpen) {
       dialActivateOption = num - 1;
       requestAnimationFrame(() => { dialActivateOption = null; });
       return;
@@ -163,7 +183,6 @@
     }
   }
 
-  // Pad: continuous hold via pointer events
   function handleInputStart(action: string) {
     scene?.setInput(action, true);
   }
@@ -177,24 +196,43 @@
   }
 
   function toggleTheme() {
-    const next = theme === 'light' ? 'dark' : 'light';
-    settingsStore.update({ theme: next });
+    const order: ('system' | 'light' | 'dark')[] = ['system', 'light', 'dark'];
+    const idx = order.indexOf(themeMode);
+    const next = order[(idx + 1) % order.length];
+    handleDialSelect('theme', next);
   }
 
   function handleDialSelect(faceId: string, optionId: string) {
     dialSelections = { ...dialSelections, [faceId]: optionId };
+
+    // Scene bay actions
     if (faceId === 'theme') {
-      settingsStore.update({ theme: optionId as 'light' | 'dark' });
+      themeMode = optionId as 'system' | 'light' | 'dark';
+      if (optionId === 'system') {
+        applyTheme(resolveSystemTheme());
+      } else {
+        applyTheme(optionId as 'light' | 'dark');
+      }
     } else if (faceId === 'camera') {
       scene?.setCameraMode(optionId as CameraMode);
       cameraMode = optionId as CameraMode;
     }
+    // App bay actions are dummy for now — selections are tracked but not wired
   }
 
   function handleDialToggle(faceId: string) {
     if (faceId === 'theme') {
       toggleTheme();
     }
+    // App bay toggles (pipeline, refinement) are dummy for now
+  }
+
+  function handleBayChange(nextIndex: number) {
+    activeBayIndex = nextIndex;
+  }
+
+  function handleFanStateChange(isOpen: boolean) {
+    dialHasFanOpen = isOpen;
   }
 </script>
 
@@ -215,11 +253,15 @@
       {keyActiveActions}
     />
 
-    <!-- Scene dial: bottom-right -->
-    <SceneDial
+    <!-- Hexagon dial: bottom-right -->
+    <HexagonDial
+      bays={dialBays}
+      {activeBayIndex}
       selections={dialSelections}
       onSelect={handleDialSelect}
       onToggle={handleDialToggle}
+      onBayChange={handleBayChange}
+      onFanStateChange={handleFanStateChange}
       activateFace={dialActivateFace}
       activateCenter={dialActivateCenter}
       activateOptionIndex={dialActivateOption}

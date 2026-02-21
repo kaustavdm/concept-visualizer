@@ -30,6 +30,7 @@
   let activated = $state(false);
   let activateTimer: ReturnType<typeof setTimeout> | null = null;
   let activeButtons = $state(new Set<string>());
+  let hoveredButton: string | null = $state(null);
 
   // Merge pointer-active and keyboard-active for visual feedback
   let allActive = $derived(new Set([...activeButtons, ...keyActiveActions]));
@@ -63,6 +64,24 @@
     const next = new Set(activeButtons);
     next.delete(action);
     activeButtons = next;
+  }
+
+  function getTriangleFill(action: string): string {
+    if (allActive.has(action)) return modeColor.accent;
+    if (hoveredButton === action) return modeColor.center;
+    return modeColor.fill;
+  }
+
+  function getTriangleStroke(action: string): string {
+    if (allActive.has(action)) return modeColor.ring;
+    if (hoveredButton === action) return modeColor.ring;
+    return modeColor.accent;
+  }
+
+  function getZoomFill(action: string): string {
+    if (allActive.has(action)) return 'var(--pad-btn-bg-active)';
+    if (hoveredButton === action) return 'var(--pad-btn-bg-hover)';
+    return 'var(--pad-btn-bg)';
   }
 
   // Directional triangles: [action, polygon points, key hint label, hint x, hint y]
@@ -158,13 +177,15 @@
       {#each TRIANGLES as [action, points, hint, hx, hy]}
         <polygon
           {points}
-          stroke-width={allActive.has(action) ? 3 : 1}
+          stroke-width={allActive.has(action) ? 3 : hoveredButton === action ? 1.5 : 1}
           stroke-linejoin="round"
           filter={allActive.has(action) ? 'url(#pad-glow)' : 'url(#pad-emboss)'}
-          style="cursor: pointer; fill: {allActive.has(action) ? modeColor.accent : modeColor.fill}; stroke: {allActive.has(action) ? modeColor.ring : modeColor.accent}; transition: fill 1s, stroke 1s;"
+          style="cursor: pointer; fill: {getTriangleFill(action)}; stroke: {getTriangleStroke(action)}; transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;"
           onpointerdown={(e) => startPress(action, e)}
           onpointerup={() => endPress(action)}
-          onpointerleave={() => endPress(action)}
+          onpointerleave={() => { endPress(action); hoveredButton = null; }}
+          onmouseenter={() => (hoveredButton = action)}
+          onmouseleave={() => (hoveredButton = null)}
           role="button"
           tabindex="-1"
           aria-label={hint}
@@ -189,11 +210,13 @@
       <!-- Center compass — color reflects camera mode (shift inverts) -->
       <circle
         cx="80" cy="80" r="22"
-        stroke-width="1.5"
+        stroke-width={hoveredButton === 'center' ? 2 : 1.5}
         filter="url(#pad-emboss)"
-        style="cursor: pointer; fill: {modeColor.center}; stroke: {modeColor.accent}; transition: fill 1s, stroke 1s;"
+        style="cursor: pointer; fill: {hoveredButton === 'center' ? modeColor.accent : modeColor.center}; stroke: {hoveredButton === 'center' ? modeColor.ring : modeColor.accent}; transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;"
         onclick={onLookAtOrigin}
         onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') onLookAtOrigin(); }}
+        onmouseenter={() => (hoveredButton = 'center')}
+        onmouseleave={() => (hoveredButton = null)}
         role="button"
         tabindex="-1"
         aria-label="Look at origin"
@@ -245,12 +268,14 @@
       >
         <polygon
           points={HEX_POINTS}
-          stroke-width={allActive.has('zoom_in') ? 2 : 1}
+          stroke-width={allActive.has('zoom_in') ? 2 : hoveredButton === 'zoom_in' ? 1.5 : 1}
           stroke-linejoin="round"
-          style="fill: {allActive.has('zoom_in') ? 'var(--pad-btn-bg-active)' : 'var(--pad-btn-bg)'}; stroke: {allActive.has('zoom_in') ? modeColor.ring : modeColor.accent}; transition: fill 0.1s, stroke 1s;"
+          style="fill: {getZoomFill('zoom_in')}; stroke: {allActive.has('zoom_in') || hoveredButton === 'zoom_in' ? modeColor.ring : modeColor.accent}; transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;"
           onpointerdown={(e) => startPress('zoom_in', e)}
           onpointerup={() => endPress('zoom_in')}
-          onpointerleave={() => endPress('zoom_in')}
+          onpointerleave={() => { endPress('zoom_in'); hoveredButton = null; }}
+          onmouseenter={() => (hoveredButton = 'zoom_in')}
+          onmouseleave={() => (hoveredButton = null)}
           role="button"
           tabindex="-1"
           aria-label="Zoom in"
@@ -260,13 +285,13 @@
           x1="12" y1="15" x2="22" y2="15"
           stroke-width="2" stroke-linecap="round"
           pointer-events="none"
-          style="stroke: {allActive.has('zoom_in') ? modeColor.ring : 'var(--pad-icon)'}; transition: stroke 1s;"
+          style="stroke: {allActive.has('zoom_in') || hoveredButton === 'zoom_in' ? modeColor.ring : 'var(--pad-icon)'}; transition: stroke 0.15s;"
         />
         <line
           x1="17" y1="10" x2="17" y2="20"
           stroke-width="2" stroke-linecap="round"
           pointer-events="none"
-          style="stroke: {allActive.has('zoom_in') ? modeColor.ring : 'var(--pad-icon)'}; transition: stroke 1s;"
+          style="stroke: {allActive.has('zoom_in') || hoveredButton === 'zoom_in' ? modeColor.ring : 'var(--pad-icon)'}; transition: stroke 0.15s;"
         />
       </svg>
       {#if showKeyHints}
@@ -288,12 +313,14 @@
       >
         <polygon
           points={HEX_POINTS}
-          stroke-width={allActive.has('zoom_out') ? 2 : 1}
+          stroke-width={allActive.has('zoom_out') ? 2 : hoveredButton === 'zoom_out' ? 1.5 : 1}
           stroke-linejoin="round"
-          style="fill: {allActive.has('zoom_out') ? 'var(--pad-btn-bg-active)' : 'var(--pad-btn-bg)'}; stroke: {allActive.has('zoom_out') ? modeColor.ring : modeColor.accent}; transition: fill 0.1s, stroke 1s;"
+          style="fill: {getZoomFill('zoom_out')}; stroke: {allActive.has('zoom_out') || hoveredButton === 'zoom_out' ? modeColor.ring : modeColor.accent}; transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;"
           onpointerdown={(e) => startPress('zoom_out', e)}
           onpointerup={() => endPress('zoom_out')}
-          onpointerleave={() => endPress('zoom_out')}
+          onpointerleave={() => { endPress('zoom_out'); hoveredButton = null; }}
+          onmouseenter={() => (hoveredButton = 'zoom_out')}
+          onmouseleave={() => (hoveredButton = null)}
           role="button"
           tabindex="-1"
           aria-label="Zoom out"
@@ -303,7 +330,7 @@
           x1="12" y1="15" x2="22" y2="15"
           stroke-width="2" stroke-linecap="round"
           pointer-events="none"
-          style="stroke: {allActive.has('zoom_out') ? modeColor.ring : 'var(--pad-icon)'}; transition: stroke 1s;"
+          style="stroke: {allActive.has('zoom_out') || hoveredButton === 'zoom_out' ? modeColor.ring : 'var(--pad-icon)'}; transition: stroke 0.15s;"
         />
       </svg>
       {#if showKeyHints}

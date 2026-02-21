@@ -1,20 +1,87 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import type { HexBayConfig, HexFaceConfig } from './hexagon-dial.types';
 
   interface Props {
+    bays: HexBayConfig[];
+    activeBayIndex: number;
     selections: Record<string, string>;
     onSelect: (faceId: string, optionId: string) => void;
     onToggle: (faceId: string) => void;
+    onBayChange: (nextIndex: number) => void;
+    onFanStateChange?: (isOpen: boolean) => void;
     activateFace?: string | null;
     activateCenter?: boolean;
     activateOptionIndex?: number | null;
     dismiss?: boolean;
   }
 
-  let { selections, onSelect, onToggle, activateFace = null, activateCenter = false, activateOptionIndex = null, dismiss = false }: Props = $props();
+  let {
+    bays,
+    activeBayIndex,
+    selections,
+    onSelect,
+    onToggle,
+    onBayChange,
+    onFanStateChange,
+    activateFace = null,
+    activateCenter = false,
+    activateOptionIndex = null,
+    dismiss = false,
+  }: Props = $props();
+
+  // --- Geometry: positional constants, independent of bay content ---
+
+  const HEX_POSITIONS = [
+    {
+      keyHint: 'O',
+      path: 'M67,57.5 L44,17.6 L116,17.6 L93,57.5 A26,26 0 0,0 67,57.5',
+      iconPos: { x: 80, y: 38 },
+      fanAngle: 270,
+      edgeMidpoint: { x: 80, y: 17.6 },
+    },
+    {
+      keyHint: ';',
+      path: 'M93,57.5 L116,17.6 L152,80 L106,80 A26,26 0 0,0 93,57.5',
+      iconPos: { x: 118, y: 56 },
+      fanAngle: 330,
+      edgeMidpoint: { x: 134, y: 48.8 },
+    },
+    {
+      keyHint: '.',
+      path: 'M106,80 L152,80 L116,142.4 L93,102.5 A26,26 0 0,0 106,80',
+      iconPos: { x: 118, y: 104 },
+      fanAngle: 30,
+      edgeMidpoint: { x: 134, y: 111.2 },
+    },
+    {
+      keyHint: ',',
+      path: 'M93,102.5 L116,142.4 L44,142.4 L67,102.5 A26,26 0 0,0 93,102.5',
+      iconPos: { x: 80, y: 122 },
+      fanAngle: 90,
+      edgeMidpoint: { x: 80, y: 142.4 },
+    },
+    {
+      keyHint: 'M',
+      path: 'M67,102.5 L44,142.4 L8,80 L54,80 A26,26 0 0,0 67,102.5',
+      iconPos: { x: 42, y: 104 },
+      fanAngle: 150,
+      edgeMidpoint: { x: 26, y: 111.2 },
+    },
+    {
+      keyHint: 'K',
+      path: 'M54,80 L8,80 L44,17.6 L67,57.5 A26,26 0 0,0 54,80',
+      iconPos: { x: 42, y: 56 },
+      fanAngle: 210,
+      edgeMidpoint: { x: 26, y: 48.8 },
+    },
+  ] as const;
+
+  const HEX_POINTS = '152,80 116,142.4 44,142.4 8,80 44,17.6 116,17.6';
+
+  // --- Component state ---
 
   let openFace: string | null = $state(null);
-  let lastInteracted: string = $state('theme');
   let hovered = $state(false);
   let activated = $state(false);
   let brightnessTimer: ReturnType<typeof setTimeout> | null = null;
@@ -24,112 +91,35 @@
   let fanVisible = $state(false);
   let activatedFaceId: string | null = $state(null);
   let activateTimer: ReturnType<typeof setTimeout> | null = null;
+  let bayContentOpacity = $state(1);
+  let bayTransitioning = $state(false);
 
-  const FACES = [
-    {
-      id: 'theme',
-      label: 'Theme',
-      keyHint: 'O',
-      path: 'M67,57.5 L44,17.6 L116,17.6 L93,57.5 A26,26 0 0,0 67,57.5',
-      iconPos: { x: 80, y: 38 },
-      fanAngle: 270,
-      edgeMidpoint: { x: 80, y: 17.6 },
-      isToggle: false,
-      options: [
-        { id: 'light', label: 'Light' },
-        { id: 'dark', label: 'Dark' },
-      ],
-      iconPath: 'M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z',
-    },
-    {
-      id: 'lighting',
-      label: 'Lighting',
-      keyHint: ';',
-      path: 'M93,57.5 L116,17.6 L152,80 L106,80 A26,26 0 0,0 93,57.5',
-      iconPos: { x: 118, y: 56 },
-      fanAngle: 330,
-      edgeMidpoint: { x: 134, y: 48.8 },
-      isToggle: false,
-      options: [
-        { id: 'studio', label: 'Studio' },
-        { id: 'dramatic', label: 'Dramatic' },
-        { id: 'soft', label: 'Soft' },
-        { id: 'ambient', label: 'Ambient' },
-      ],
-      iconPath:
-        'M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z',
-    },
-    {
-      id: 'environment',
-      label: 'Environment',
-      keyHint: '.',
-      path: 'M106,80 L152,80 L116,142.4 L93,102.5 A26,26 0 0,0 106,80',
-      iconPos: { x: 118, y: 104 },
-      fanAngle: 30,
-      edgeMidpoint: { x: 134, y: 111.2 },
-      isToggle: false,
-      options: [
-        { id: 'void', label: 'Void' },
-        { id: 'gradient', label: 'Gradient' },
-        { id: 'grid', label: 'Grid' },
-      ],
-      iconPath:
-        'M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z',
-    },
-    {
-      id: 'objects',
-      label: 'Objects',
-      keyHint: ',',
-      path: 'M93,102.5 L116,142.4 L44,142.4 L67,102.5 A26,26 0 0,0 93,102.5',
-      iconPos: { x: 80, y: 122 },
-      fanAngle: 90,
-      edgeMidpoint: { x: 80, y: 142.4 },
-      isToggle: false,
-      options: [
-        { id: 'all', label: 'All' },
-        { id: 'primary', label: 'Primary' },
-        { id: 'none', label: 'None' },
-      ],
-      iconPath:
-        'M21 16.5c0 .38-.21.71-.53.88l-7.9 4.44c-.36.2-.8.2-1.14 0l-7.9-4.44A.991.991 0 013 16.5v-9c0-.38.21-.71.53-.88l7.9-4.44c.36-.2.8-.2 1.14 0l7.9 4.44c.32.17.53.5.53.88v9z',
-    },
-    {
-      id: 'camera',
-      label: 'Camera',
-      keyHint: 'M',
-      path: 'M67,102.5 L44,142.4 L8,80 L54,80 A26,26 0 0,0 67,102.5',
-      iconPos: { x: 42, y: 104 },
-      fanAngle: 150,
-      edgeMidpoint: { x: 26, y: 111.2 },
-      isToggle: false,
-      options: [
-        { id: 'orbit', label: 'Orbit' },
-        { id: 'fly', label: 'Fly' },
-        { id: 'follow', label: 'Follow' },
-      ],
-      iconPath:
-        'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
-    },
-    {
-      id: 'effects',
-      label: 'Effects',
-      keyHint: 'K',
-      path: 'M54,80 L8,80 L44,17.6 L67,57.5 A26,26 0 0,0 54,80',
-      iconPos: { x: 42, y: 56 },
-      fanAngle: 210,
-      edgeMidpoint: { x: 26, y: 48.8 },
-      isToggle: false,
-      options: [
-        { id: 'none', label: 'None' },
-        { id: 'bloom', label: 'Bloom' },
-        { id: 'dof', label: 'DoF' },
-      ],
-      iconPath:
-        'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5z',
-    },
-  ] as const;
+  // Fan auto-close timers: 3s delay then 300ms fade-out
+  let fanCloseTimer: ReturnType<typeof setTimeout> | null = null;
+  let fanFadeTimer: ReturnType<typeof setTimeout> | null = null;
+
+  // --- Derived state ---
+
+  let activeBay = $derived(bays[activeBayIndex]);
+  let tint = $derived(activeBay.tint);
+
+  type RenderedFace = (typeof HEX_POSITIONS)[number] & HexFaceConfig;
+
+  let renderedFaces: RenderedFace[] = $derived(
+    HEX_POSITIONS.map((geo, i) => ({ ...geo, ...activeBay.faces[i] }))
+  );
+
+  let openFaceData = $derived(
+    openFace ? renderedFaces.find((f) => f.id === openFace) ?? null : null
+  );
+
+  let fanPositions = $derived(
+    openFaceData ? getFanPositions(openFaceData) : []
+  );
 
   let opacity = $derived(activated ? 1 : hovered ? 0.7 : 0.4);
+
+  // --- Functions ---
 
   function flashActivated() {
     activated = true;
@@ -145,48 +135,97 @@
     activateTimer = setTimeout(() => { activatedFaceId = null; }, 300);
   }
 
-  function handleFaceClick(face: (typeof FACES)[number]) {
+  function cancelFanTimers() {
+    if (fanCloseTimer) { clearTimeout(fanCloseTimer); fanCloseTimer = null; }
+    if (fanFadeTimer) { clearTimeout(fanFadeTimer); fanFadeTimer = null; }
+  }
+
+  // Schedule auto-close: 3s visible → 300ms fade → remove from DOM
+  function scheduleFanClose() {
+    cancelFanTimers();
+    fanCloseTimer = setTimeout(() => {
+      fanCloseTimer = null;
+      fanVisible = false;
+      fanFadeTimer = setTimeout(() => {
+        fanFadeTimer = null;
+        openFace = null;
+        onFanStateChange?.(false);
+      }, 300);
+    }, 3000);
+  }
+
+  // Immediate close: Escape, click outside, bay switch
+  function closeFan() {
+    cancelFanTimers();
+    if (openFace) {
+      openFace = null;
+      fanVisible = false;
+      onFanStateChange?.(false);
+    }
+  }
+
+  function handleFaceClick(face: RenderedFace) {
     flashActivated();
     flashActivation(face.id);
     if (face.isToggle) {
       onToggle(face.id);
-      lastInteracted = face.id;
       return;
     }
+    // Same face pressed while fan is open → cycle option, restart timer
     if (openFace === face.id) {
-      openFace = null;
-      fanVisible = false;
-    } else {
-      openFace = face.id;
-      lastInteracted = face.id;
-      // Delay fanVisible so the transition triggers after mount
-      fanVisible = false;
-      requestAnimationFrame(() => {
-        fanVisible = true;
-      });
+      cancelFanTimers();
+      fanVisible = true; // restore if mid-fade
+      const currentSel = selections[face.id];
+      const idx = face.options.findIndex((o) => o.id === currentSel);
+      const nextIdx = (idx + 1) % face.options.length;
+      onSelect(face.id, face.options[nextIdx].id);
+      scheduleFanClose();
+      return;
     }
+    // Different face → cancel old timers, open new fan, start timer
+    cancelFanTimers();
+    openFace = face.id;
+    fanVisible = false;
+    onFanStateChange?.(true);
+    requestAnimationFrame(() => {
+      fanVisible = true;
+    });
+    scheduleFanClose();
   }
 
   function handleOptionClick(faceId: string, optionId: string) {
     flashActivated();
     onSelect(faceId, optionId);
-    openFace = null;
-    fanVisible = false;
+    scheduleFanClose();
   }
 
   function handleWindowClick(e: MouseEvent) {
     if (openFace && containerEl && !containerEl.contains(e.target as Node)) {
-      openFace = null;
-      fanVisible = false;
+      closeFan();
     }
   }
 
-  // Fixed upper-left arc so fan options never clip off-screen
-  function getFanPositions(face: (typeof FACES)[number]) {
+  function switchBay() {
+    if (bays.length <= 1 || bayTransitioning) return;
+    closeFan();
+    bayTransitioning = true;
+    bayContentOpacity = 0;
+    setTimeout(() => {
+      const nextIndex = (activeBayIndex + 1) % bays.length;
+      onBayChange(nextIndex);
+      requestAnimationFrame(() => {
+        bayContentOpacity = 1;
+        setTimeout(() => { bayTransitioning = false; }, 100);
+      });
+    }, 100);
+  }
+
+  // Fan positions: fixed upper-left arc
+  function getFanPositions(face: RenderedFace) {
     const { options } = face;
     const count = options.length;
-    const anchor = { x: 26, y: 48 };  // upper-left edge of hex
-    const centerAngle = 210;           // fans toward upper-left
+    const anchor = { x: 26, y: 48 };
+    const centerAngle = 210;
     const spreadDeg = 42;
     const dist = 60;
     return options.map((opt, i) => {
@@ -200,67 +239,64 @@
     });
   }
 
+  // --- Tint-aware styling ---
+
   function getFaceFill(faceId: string): string {
-    if (activatedFaceId === faceId) return 'var(--pad-btn-bg-active)';
-    if (openFace === faceId) return 'var(--pad-btn-bg-active)';
-    if (hoveredFace === faceId) return 'var(--pad-btn-bg-hover)';
+    if (activatedFaceId === faceId) return tint.activeBg;
+    if (openFace === faceId) return tint.activeBg;
+    if (hoveredFace === faceId) return tint.hoverBg;
     return 'var(--pad-btn-bg)';
   }
 
   function getFaceStroke(faceId: string): string {
-    if (activatedFaceId === faceId) return 'var(--accent)';
-    if (openFace === faceId) return 'var(--accent)';
+    if (activatedFaceId === faceId) return tint.accent;
+    if (openFace === faceId) return tint.border;
+    if (hoveredFace === faceId) return tint.border;
     return 'var(--glass-border)';
   }
 
   function getFaceStrokeWidth(faceId: string): number {
     if (activatedFaceId === faceId) return 3;
     if (openFace === faceId) return 2;
+    if (hoveredFace === faceId) return 1;
     return 0.5;
   }
 
   function getFaceFilter(faceId: string): string {
     if (activatedFaceId === faceId) return 'url(#activation-glow)';
-    return 'url(#scene-emboss)';
+    return 'url(#hex-emboss)';
   }
 
-  let lastInteractedFace = $derived(
-    FACES.find((f) => f.id === lastInteracted) ?? FACES[0]
-  );
+  function getIconFill(faceId: string): string {
+    if (openFace === faceId) return tint.accent;
+    if (hoveredFace === faceId) return tint.accent;
+    return 'var(--pad-icon)';
+  }
 
-  let openFaceData = $derived(
-    openFace ? FACES.find((f) => f.id === openFace) ?? null : null
-  );
+  // --- Cleanup all timers on destroy ---
 
-  let fanPositions = $derived(
-    openFaceData ? getFanPositions(openFaceData) : []
-  );
+  $effect(() => {
+    return () => {
+      cancelFanTimers();
+      if (brightnessTimer) clearTimeout(brightnessTimer);
+      if (activateTimer) clearTimeout(activateTimer);
+    };
+  });
 
-  // React to keyboard-triggered face activation from the page.
-  // MUST use untrack: handleFaceClick reads openFace, and writing openFace
-  // would re-trigger this effect while activateFace is still set, causing
-  // an immediate open→close cycle. (Same class of bug as $effect + $state read/write.)
+  // --- Keyboard-driven effects ---
+
   $effect(() => {
     if (activateFace) {
-      const face = FACES.find((f) => f.id === activateFace);
+      const face = renderedFaces.find((f) => f.id === activateFace);
       if (face) untrack(() => handleFaceClick(face));
     }
   });
 
-  // React to center key (L): cycle to next option in open fan
   $effect(() => {
     if (!activateCenter) return;
-    untrack(() => {
-      if (openFaceData && openFaceData.options.length > 0) {
-        const currentSel = selections[openFaceData.id];
-        const idx = openFaceData.options.findIndex((o) => o.id === currentSel);
-        const nextIdx = (idx + 1) % openFaceData.options.length;
-        handleOptionClick(openFaceData.id, openFaceData.options[nextIdx].id);
-      }
-    });
+    untrack(() => switchBay());
   });
 
-  // React to number key (1-9): select nth option in open fan
   $effect(() => {
     if (activateOptionIndex == null) return;
     const idx = activateOptionIndex;
@@ -271,18 +307,10 @@
     });
   });
 
-  // Dismiss: close open fan
   $effect(() => {
     if (!dismiss) return;
-    untrack(() => {
-      if (openFace) {
-        openFace = null;
-        fanVisible = false;
-      }
-    });
+    untrack(() => closeFan());
   });
-
-  const HEX_POINTS = '152,80 116,142.4 44,142.4 8,80 44,17.6 116,17.6';
 </script>
 
 <svelte:window onclick={handleWindowClick} />
@@ -301,7 +329,7 @@
   }}
   role="toolbar"
   tabindex="0"
-  aria-label="Scene controls"
+  aria-label="{activeBay.label} controls"
 >
   <!-- Hex container -->
   <div class="relative" style="width: 173px; height: 173px;">
@@ -311,7 +339,7 @@
       style="
         background: linear-gradient(145deg, rgba(255,255,255,0.08) 0%, transparent 50%, rgba(0,0,0,0.15) 100%), var(--glass-bg);
         backdrop-filter: blur(16px);
-        border: 1px solid var(--glass-border);
+        border: 1px solid {tint.border};
         clip-path: polygon(
           95% 50%,
           72.5% 89%,
@@ -320,6 +348,7 @@
           27.5% 11%,
           72.5% 11%
         );
+        transition: border-color 200ms ease;
       "
     ></div>
 
@@ -333,7 +362,7 @@
       style="display: block;"
     >
       <defs>
-        <filter id="scene-glow">
+        <filter id="hex-glow">
           <feGaussianBlur stdDeviation="3" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
@@ -348,8 +377,7 @@
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <!-- Emboss: top-light bevel -->
-        <filter id="scene-emboss" x="-5%" y="-5%" width="110%" height="110%">
+        <filter id="hex-emboss" x="-5%" y="-5%" width="110%" height="110%">
           <feGaussianBlur in="SourceAlpha" stdDeviation="1" result="blur" />
           <feOffset in="blur" dx="0" dy="1" result="offsetTop" />
           <feFlood flood-color="white" flood-opacity="0.15" result="lightColor" />
@@ -369,69 +397,79 @@
       <polygon
         points={HEX_POINTS}
         fill="none"
-        stroke="var(--glass-border)"
+        stroke={tint.border}
         stroke-width="0.5"
+        style="transition: stroke 200ms ease;"
       />
 
-      <!-- Face paths -->
-      {#each FACES as face}
-        <path
-          d={face.path}
-          fill={getFaceFill(face.id)}
-          stroke={getFaceStroke(face.id)}
-          stroke-width={getFaceStrokeWidth(face.id)}
-          filter={getFaceFilter(face.id)}
-          style="cursor: pointer; transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;"
-          onclick={() => handleFaceClick(face)}
-          onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleFaceClick(face); }}
-          onmouseenter={() => (hoveredFace = face.id)}
-          onmouseleave={() => (hoveredFace = null)}
-          role="button"
-          tabindex="-1"
-          aria-label={face.label}
-        />
-      {/each}
-
-      <!-- Face icons and key hints -->
-      {#each FACES as face}
-        <svg
-          x={face.iconPos.x - 6}
-          y={face.iconPos.y - 6}
-          width="12"
-          height="12"
-          viewBox="0 0 24 24"
-          pointer-events="none"
-        >
+      <!-- Bay content with cross-fade -->
+      <g style="opacity: {bayContentOpacity}; transition: opacity 100ms ease;">
+        <!-- Face paths -->
+        {#each renderedFaces as face}
           <path
-            d={face.iconPath}
-            fill={openFace === face.id ? 'var(--accent)' : 'var(--pad-icon)'}
-            style="transition: fill 0.15s;"
+            d={face.path}
+            fill={getFaceFill(face.id)}
+            stroke={getFaceStroke(face.id)}
+            stroke-width={getFaceStrokeWidth(face.id)}
+            filter={getFaceFilter(face.id)}
+            style="cursor: pointer; transition: fill 0.15s, stroke 0.15s, stroke-width 0.15s;"
+            onclick={() => handleFaceClick(face)}
+            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleFaceClick(face); }}
+            onmouseenter={() => (hoveredFace = face.id)}
+            onmouseleave={() => (hoveredFace = null)}
+            role="button"
+            tabindex="-1"
+            aria-label={face.label}
           />
-        </svg>
-        {#if showKeyHints}
-          <text
-            x={face.iconPos.x}
-            y={face.iconPos.y + 14}
-            text-anchor="middle"
-            fill="var(--pad-icon)"
-            font-size="8"
-            font-family="var(--font-main)"
-            font-weight="500"
-            pointer-events="none"
-            opacity="0.8"
-          >{face.keyHint}</text>
-        {/if}
-      {/each}
+        {/each}
 
-      <!-- Center circle: shows last interacted face icon -->
+        <!-- Face icons and key hints -->
+        {#each renderedFaces as face}
+          <svg
+            x={face.iconPos.x - 6}
+            y={face.iconPos.y - 6}
+            width="12"
+            height="12"
+            viewBox="0 0 24 24"
+            pointer-events="none"
+          >
+            <path
+              d={face.iconPath}
+              fill={getIconFill(face.id)}
+              style="transition: fill 0.15s;"
+            />
+          </svg>
+          {#if showKeyHints}
+            <text
+              x={face.iconPos.x}
+              y={face.iconPos.y + 14}
+              text-anchor="middle"
+              fill="var(--pad-icon)"
+              font-size="8"
+              font-family="var(--font-main)"
+              font-weight="500"
+              pointer-events="none"
+              opacity="0.8"
+            >{face.keyHint}</text>
+          {/if}
+        {/each}
+      </g>
+
+      <!-- Center circle: shows active bay icon, clickable to switch -->
       <circle
         cx="80"
         cy="80"
         r="22"
         fill="var(--pad-btn-bg)"
-        stroke="var(--glass-border)"
+        stroke={tint.border}
         stroke-width="1"
-        filter="url(#scene-emboss)"
+        filter="url(#hex-emboss)"
+        style="cursor: pointer; transition: stroke 200ms ease;"
+        onclick={() => switchBay()}
+        onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') switchBay(); }}
+        role="button"
+        tabindex="-1"
+        aria-label="Switch bay"
       />
       <svg
         x={80 - 8}
@@ -442,8 +480,9 @@
         pointer-events="none"
       >
         <path
-          d={lastInteractedFace.iconPath}
-          fill="var(--accent)"
+          d={activeBay.centerIconPath}
+          fill={tint.accent}
+          style="transition: fill 200ms ease;"
         />
       </svg>
       {#if showKeyHints}
@@ -465,7 +504,7 @@
         {#each fanPositions as opt, i}
           <g
             style="
-              transition: opacity {150}ms ease {i * 50}ms, transform {150}ms ease {i * 50}ms;
+              transition: opacity {fanVisible ? 150 : 250}ms ease {fanVisible ? i * 50 : 0}ms, transform {fanVisible ? 150 : 250}ms ease {fanVisible ? i * 50 : 0}ms;
               opacity: {fanVisible ? 1 : 0};
               transform-origin: {opt.x}px {opt.y}px;
               transform: scale({fanVisible ? 1 : 0.3});
@@ -476,14 +515,14 @@
               cy={opt.y}
               r="16"
               fill={selections[openFaceData.id] === opt.id
-                ? 'var(--pad-btn-bg-active)'
+                ? tint.activeBg
                 : 'var(--pad-btn-bg)'}
               stroke={selections[openFaceData.id] === opt.id
-                ? 'var(--accent)'
+                ? tint.accent
                 : 'var(--glass-border)'}
               stroke-width={selections[openFaceData.id] === opt.id ? 2 : 1}
               filter={selections[openFaceData.id] === opt.id
-                ? 'url(#scene-glow)'
+                ? 'url(#hex-glow)'
                 : 'none'}
               style="cursor: pointer; transition: fill 0.1s, stroke 0.1s;"
               onclick={() => handleOptionClick(openFaceData!.id, opt.id)}
@@ -498,7 +537,7 @@
               text-anchor="middle"
               dominant-baseline="central"
               fill={selections[openFaceData.id] === opt.id
-                ? 'var(--accent)'
+                ? tint.accent
                 : 'var(--pad-icon)'}
               font-size="7"
               font-family="var(--font-main)"
@@ -511,4 +550,20 @@
       {/if}
     </svg>
   </div>
+
+  <!-- Bay indicator dots -->
+  {#if bays.length > 1}
+    <div class="flex gap-1.5 mt-1">
+      {#each bays as bay, i}
+        <div
+          class="rounded-full transition-all duration-200"
+          style="
+            width: {i === activeBayIndex ? '12px' : '6px'};
+            height: 6px;
+            background: {i === activeBayIndex ? bay.tint.accent : 'var(--glass-border)'};
+          "
+        ></div>
+      {/each}
+    </div>
+  {/if}
 </div>
