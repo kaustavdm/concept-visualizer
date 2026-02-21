@@ -13,15 +13,18 @@
 
   let { compassAngle, cameraMode, shiftHeld = false, onInputStart, onInputEnd, onLookAtOrigin, keyActiveActions = new Set() }: Props = $props();
 
-  // Metallic mode colors — green for orbit, blue for pan/fly
+  // Metallic mode colors — green for orbit, blue for fly, amber for follow
   const MODE_COLORS = {
-    orbit: { fill: '#2f4a2a', center: '#3a6435', accent: '#5a9960', ring: '#7dca8a' },
-    fly:   { fill: '#1e3348', center: '#2a4f6a', accent: '#4a82a8', ring: '#6ab4dc' },
+    orbit:  { fill: '#2f4a2a', center: '#3a6435', accent: '#5a9960', ring: '#7dca8a' },
+    fly:    { fill: '#1e3348', center: '#2a4f6a', accent: '#4a82a8', ring: '#6ab4dc' },
+    follow: { fill: '#4a3a1e', center: '#6a5a2a', accent: '#a8884a', ring: '#dcb86a' },
   } as const;
 
-  // Shift inverts the mode (mirrors scene engine logic)
+  // Shift inverts orbit↔fly (does not affect follow)
   let effectiveMode = $derived<CameraMode>(
-    shiftHeld ? (cameraMode === 'orbit' ? 'fly' : 'orbit') : cameraMode
+    cameraMode === 'follow'
+      ? 'follow'
+      : shiftHeld ? (cameraMode === 'orbit' ? 'fly' : 'orbit') : cameraMode
   );
   let modeColor = $derived(MODE_COLORS[effectiveMode]);
 
@@ -228,7 +231,7 @@
         <polygon points="80,100 76,80 84,80" opacity="0.3"
           style="fill: {modeColor.accent}; transition: fill 1s;" />
       </g>
-      <!-- Mode icon: orbit = ring, fly/pan = divergence arrows -->
+      <!-- Mode icon: orbit = ring, fly = divergence arrows, follow = crosshair -->
       {#if effectiveMode === 'orbit'}
         <circle
           cx="80" cy="80" r="5"
@@ -236,12 +239,22 @@
           pointer-events="none"
           style="fill: none; stroke: {modeColor.ring}; transition: stroke 1s;"
         />
-      {:else}
+      {:else if effectiveMode === 'fly'}
         <g pointer-events="none">
           <line x1="80" y1="77" x2="80" y2="72" stroke-width="1.5" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
           <line x1="80" y1="83" x2="80" y2="88" stroke-width="1.5" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
           <line x1="77" y1="80" x2="72" y2="80" stroke-width="1.5" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
           <line x1="83" y1="80" x2="88" y2="80" stroke-width="1.5" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
+        </g>
+      {:else}
+        <!-- Follow: crosshair target -->
+        <g pointer-events="none">
+          <circle cx="80" cy="80" r="4" stroke-width="1.5" style="fill: none; stroke: {modeColor.ring}; transition: stroke 1s;" />
+          <circle cx="80" cy="80" r="1.5" style="fill: {modeColor.ring}; stroke: none; transition: fill 1s;" />
+          <line x1="80" y1="73" x2="80" y2="76" stroke-width="1" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
+          <line x1="80" y1="84" x2="80" y2="87" stroke-width="1" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
+          <line x1="73" y1="80" x2="76" y2="80" stroke-width="1" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
+          <line x1="84" y1="80" x2="87" y2="80" stroke-width="1" stroke-linecap="round" style="stroke: {modeColor.ring}; transition: stroke 1s;" />
         </g>
       {/if}
       {#if showKeyHints}

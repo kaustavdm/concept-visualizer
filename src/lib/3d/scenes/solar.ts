@@ -15,17 +15,25 @@ const SPHERE_THEMES = {
   },
 };
 
-/** Moon orbit parameters (relative to blue sphere radius 0.75) */
-const ORBIT_A = 5.4; // semi-major axis
-const ORBIT_B = 3.6; // semi-minor axis
-const ORBIT_TILT = Math.PI / 4; // 45 degrees from grid plane
+/** Blue sphere orbit around pyramid */
+const SPHERE_ORBIT_RADIUS = 8; // near-circular orbit around pyramid at (10,0,0)
+const SPHERE_ORBIT_SPEED = 0.3; // radians/sec (~21s per revolution)
+
+/** Moon orbit parameters — 2.5× blue sphere visual radius (0.75) */
+const BLUE_SPHERE_RADIUS = 0.75; // half of scale 1.5
+const MOON_ORBIT_A = BLUE_SPHERE_RADIUS * 2.5; // 1.875 semi-major
+const MOON_ORBIT_B = BLUE_SPHERE_RADIUS * 2.2; // slightly elliptical
+const MOON_ORBIT_TILT = Math.PI / 4; // 45 degrees from grid plane
+
+/** Pyramid position — center of the blue sphere's orbit */
+const PYRAMID_POS: [number, number, number] = [0, 0, 0];
 
 export const solarScene: SceneContent = {
   id: 'solar',
   name: 'Solar System',
 
   entities: [
-    // Blue sphere — bobbing at origin
+    // Blue sphere — orbits around pyramid, continues to bob
     {
       id: 'sphere',
       mesh: 'sphere',
@@ -37,9 +45,13 @@ export const solarScene: SceneContent = {
         gloss: 0.75,
       },
       scale: [1.5, 1.5, 1.5],
+      followable: true,
       animate: (entity, ctx) => {
         const bobY = Math.sin(ctx.time * 0.8) * 0.25;
-        entity.setPosition(0, bobY, 0);
+        const angle = ctx.time * SPHERE_ORBIT_SPEED;
+        const x = PYRAMID_POS[0] + Math.cos(angle) * SPHERE_ORBIT_RADIUS;
+        const z = PYRAMID_POS[2] + Math.sin(angle) * SPHERE_ORBIT_RADIUS;
+        entity.setPosition(x, bobY, z);
         entity.setLocalEulerAngles(
           0,
           ctx.time * 12,
@@ -48,7 +60,7 @@ export const solarScene: SceneContent = {
       },
     },
 
-    // Sandy pyramid — static at (10, 0, 0)
+    // Sandy pyramid — static at center
     {
       id: 'pyramid',
       mesh: {
@@ -66,11 +78,11 @@ export const solarScene: SceneContent = {
         metalness: 0.1,
         gloss: 0.4,
       },
-      position: [10, 0, 0],
+      position: PYRAMID_POS,
       rotation: [0, 45, 0],
     },
 
-    // Silver moon — elliptical orbit around blue sphere
+    // Silver moon — orbits blue sphere with tighter orbit
     {
       id: 'moon',
       mesh: 'sphere',
@@ -82,14 +94,22 @@ export const solarScene: SceneContent = {
         gloss: 0.85,
       },
       scale: [0.15, 0.15, 0.15],
+      followable: true,
       animate: (entity, ctx) => {
         const sphere = ctx.entities['sphere'];
-        const sphereY = sphere?.getPosition().y ?? 0;
+        const spherePos = sphere?.getPosition();
+        const sphereX = spherePos?.x ?? 0;
+        const sphereY = spherePos?.y ?? 0;
+        const sphereZ = spherePos?.z ?? 0;
         const angle = ctx.time * 0.6; // ~10s per revolution
-        const moonX = Math.cos(angle) * ORBIT_A;
-        const moonY = Math.sin(angle) * ORBIT_B * Math.sin(ORBIT_TILT);
-        const moonZ = Math.sin(angle) * ORBIT_B * Math.cos(ORBIT_TILT);
-        entity.setPosition(moonX, sphereY + moonY, moonZ);
+        const moonX = Math.cos(angle) * MOON_ORBIT_A;
+        const moonY = Math.sin(angle) * MOON_ORBIT_B * Math.sin(MOON_ORBIT_TILT);
+        const moonZ = Math.sin(angle) * MOON_ORBIT_B * Math.cos(MOON_ORBIT_TILT);
+        entity.setPosition(
+          sphereX + moonX,
+          sphereY + moonY,
+          sphereZ + moonZ,
+        );
       },
     },
 

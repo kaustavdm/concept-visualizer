@@ -106,6 +106,14 @@
           <kbd>Shift</kbd>
           <span>Hold to toggle orbit / fly</span>
         </div>
+        <div class="shortcut-row">
+          <kbd>M</kbd> then <kbd>F</kbd>
+          <span>Enter follow mode</span>
+        </div>
+        <div class="shortcut-row">
+          <kbd>Space</kbd>
+          <span>Cycle follow target</span>
+        </div>
       </div>
     </section>
 

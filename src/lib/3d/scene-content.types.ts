@@ -41,6 +41,8 @@ export interface SceneEntitySpec {
   opacity?: { map: 'grid'; tiling: number; blend: true };
   /** Per-frame animation — receives the entity + context, mutates position/rotation */
   animate?: (entity: pc.Entity, ctx: AnimationContext) => void;
+  /** Whether the camera can follow this entity (only entities with motion) */
+  followable?: boolean;
 }
 
 /** Complete scene content definition */

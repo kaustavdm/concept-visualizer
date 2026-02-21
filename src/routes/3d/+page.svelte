@@ -38,6 +38,8 @@
   const dialBays = [SCENE_BAY, APP_BAY];
   let activeBayIndex = $state(0);
   let dialHasFanOpen = $state(false);
+  let openFanFace: string | null = $state(null);
+  let followTarget: string | null = $state(null);
   let dialSelections = $state<Record<string, string>>({ ...DEFAULT_SELECTIONS });
 
   // Dynamic key map: position keys → face IDs for the active bay
@@ -112,12 +114,27 @@
       return;
     }
 
+    // When camera fan is open, 'f' selects follow mode instead of fullscreen
+    if (e.key.toLowerCase() === 'f' && dialHasFanOpen && openFanFace === 'camera') {
+      handleDialSelect('camera', 'follow');
+      dialDismiss = true;
+      requestAnimationFrame(() => { dialDismiss = false; });
+      return;
+    }
+
     if (e.key.toLowerCase() === 'f') {
       if (document.fullscreenElement) {
         document.exitFullscreen();
       } else {
         document.documentElement.requestFullscreen();
       }
+      return;
+    }
+
+    // Space: cycle follow target (only in follow mode)
+    if (e.key === ' ' && cameraMode === 'follow') {
+      e.preventDefault();
+      followTarget = scene?.cycleFollowTarget() ?? null;
       return;
     }
 
@@ -157,6 +174,7 @@
     const face = dialKeyMap[e.key.toLowerCase()];
     if (face) {
       dialActivateFace = face;
+      openFanFace = face;
       requestAnimationFrame(() => { dialActivateFace = null; });
       return;
     }
@@ -251,6 +269,7 @@
 
   function handleFanStateChange(isOpen: boolean) {
     dialHasFanOpen = isOpen;
+    if (!isOpen) openFanFace = null;
   }
 </script>
 
@@ -287,6 +306,31 @@
     />
   {/if}
 
+  <!-- Help button: top-right hexagonal "?" -->
+  <button
+    class="help-hex"
+    onclick={() => { helpVisible = !helpVisible; }}
+    aria-label="Toggle keyboard shortcuts help"
+  >
+    <svg viewBox="0 0 34 30" width="34" height="30" class="block">
+      <polygon
+        points="31,15 24,27 10,27 3,15 10,3 24,3"
+        stroke-width="1"
+        stroke-linejoin="round"
+        style="fill: var(--glass-bg); stroke: var(--glass-border);"
+      />
+      <text
+        x="17" y="16.5"
+        text-anchor="middle"
+        dominant-baseline="central"
+        fill="var(--text-secondary)"
+        font-size="14"
+        font-family="var(--font-main)"
+        font-weight="600"
+      >?</text>
+    </svg>
+  </button>
+
   {#if helpVisible}
     <KeyboardHelp
       bays={dialBays}
@@ -295,3 +339,22 @@
     />
   {/if}
 </div>
+
+<style>
+  .help-hex {
+    position: absolute;
+    top: 16px;
+    right: 16px;
+    z-index: 20;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    padding: 0;
+  }
+
+  .help-hex:hover {
+    opacity: 1;
+  }
+</style>

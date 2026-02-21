@@ -6,7 +6,7 @@ import type {
   AnimationContext,
 } from './scene-content.types';
 
-export type CameraMode = 'orbit' | 'fly';
+export type CameraMode = 'orbit' | 'fly' | 'follow';
 
 export interface SceneController {
   setTheme(theme: 'light' | 'dark'): void;
@@ -18,6 +18,9 @@ export interface SceneController {
   getCompassAngle(): number;
   loadContent(content: SceneContent): void;
   unloadContent(): void;
+  getFollowableEntities(): string[];
+  getFollowTarget(): string | null;
+  cycleFollowTarget(): string | null;
   destroy(): void;
 }
 
@@ -214,6 +217,7 @@ export function createScene(
   // --- Content state ---
   let activeContent: SceneContent | null = null;
   const activeEntities: Record<string, pc.Entity> = {};
+  let followableIds: string[] = [];
 
   function loadContent(content: SceneContent) {
     unloadContent();
@@ -222,6 +226,13 @@ export function createScene(
       const entity = buildEntity(app, spec);
       activeEntities[spec.id] = entity;
       app.root.addChild(entity);
+    }
+    followableIds = content.entities
+      .filter((s) => s.followable)
+      .map((s) => s.id);
+    // Auto-select first followable target
+    if (followableIds.length > 0 && !followTargetId) {
+      followTargetId = followableIds[0];
     }
   }
 
@@ -233,18 +244,27 @@ export function createScene(
       delete activeEntities[key];
     }
     activeContent = null;
+    followableIds = [];
+    followTargetId = null;
   }
 
   // --- Camera state ---
   let cameraMode: CameraMode = 'orbit';
 
-  // Orbit parameters
+  // Orbit parameters — start showing pyramid at origin and orbiting sphere
   let yaw = 30;
   let pitch = 20;
-  let dist = 6;
+  let dist = 14;
   let tYaw = yaw;
   let tPitch = pitch;
   let tDist = dist;
+
+  // Follow camera state
+  let followTargetId: string | null = null;
+  let followDist = 6;
+  let followHeight = 3;
+  const followPrevPos = new pc.Vec3();
+  let followInitialized = false;
 
   // Input state
   const input = {
@@ -346,18 +366,24 @@ export function createScene(
       }
     }
 
-    // Shift temporarily activates the other mode
-    const effectiveMode = input.shift
-      ? cameraMode === 'orbit'
-        ? 'fly'
-        : 'orbit'
-      : cameraMode;
+    // Shift temporarily swaps orbit↔fly (does not affect follow)
+    const effectiveMode =
+      cameraMode === 'follow'
+        ? 'follow'
+        : input.shift
+          ? cameraMode === 'orbit'
+            ? 'fly'
+            : 'orbit'
+          : cameraMode;
 
     // On mode transition, sync state from actual camera position
     if (effectiveMode !== prevEffectiveMode) {
       if (effectiveMode === 'orbit') {
         syncOrbitFromCamera();
         startLookAt(1.0);
+      }
+      if (effectiveMode === 'follow') {
+        followInitialized = false;
       }
       prevEffectiveMode = effectiveMode;
     }
@@ -377,8 +403,10 @@ export function createScene(
 
     if (effectiveMode === 'orbit') {
       updateOrbit(dt, lookAtActive);
-    } else {
+    } else if (effectiveMode === 'fly') {
       updateFly(dt);
+    } else if (effectiveMode === 'follow') {
+      updateFollow(dt);
     }
   });
 
@@ -419,7 +447,6 @@ export function createScene(
 
     camera.setPosition(cx, cy, cz);
     if (!slerping) {
-      // In orbit, look at a point that slightly follows sphere bob
       const sphereEntity = activeEntities['sphere'];
       const bobY = sphereEntity ? sphereEntity.getPosition().y * 0.5 : 0;
       camera.lookAt(new pc.Vec3(0, bobY, 0));
@@ -432,15 +459,16 @@ export function createScene(
     const right = camera.right;
     const pos = camera.getPosition().clone();
 
+    // W = forward (along camera forward), S = backward
     if (input.up) {
-      pos.x -= fwd.x * moveSpeed;
-      pos.y -= fwd.y * moveSpeed;
-      pos.z -= fwd.z * moveSpeed;
-    }
-    if (input.down) {
       pos.x += fwd.x * moveSpeed;
       pos.y += fwd.y * moveSpeed;
       pos.z += fwd.z * moveSpeed;
+    }
+    if (input.down) {
+      pos.x -= fwd.x * moveSpeed;
+      pos.y -= fwd.y * moveSpeed;
+      pos.z -= fwd.z * moveSpeed;
     }
     if (input.left) {
       pos.x -= right.x * moveSpeed;
@@ -468,13 +496,80 @@ export function createScene(
 
     if (mouseDelta.zoom !== 0) {
       const scrollMove = mouseDelta.zoom * -0.02;
-      pos.x -= fwd.x * scrollMove;
-      pos.y -= fwd.y * scrollMove;
-      pos.z -= fwd.z * scrollMove;
+      pos.x += fwd.x * scrollMove;
+      pos.y += fwd.y * scrollMove;
+      pos.z += fwd.z * scrollMove;
       mouseDelta.zoom = 0;
     }
 
     camera.setPosition(pos);
+  }
+
+  function updateFollow(dt: number) {
+    if (!followTargetId) return;
+    const target = activeEntities[followTargetId];
+    if (!target) return;
+
+    const targetPos = target.getPosition();
+
+    // Initialize previous position on first frame to avoid velocity spike
+    if (!followInitialized) {
+      followPrevPos.copy(targetPos);
+      followInitialized = true;
+    }
+
+    // Zoom in/out adjusts follow distance
+    const zoomSpeed = 4 * dt;
+    if (input.zoomIn) followDist = Math.max(2, followDist - zoomSpeed);
+    if (input.zoomOut) followDist = Math.min(20, followDist + zoomSpeed);
+    if (mouseDelta.zoom !== 0) {
+      followDist = Math.max(2, Math.min(20, followDist + mouseDelta.zoom * 0.01));
+      mouseDelta.zoom = 0;
+    }
+
+    // Height adjust with W/S
+    const heightSpeed = 3 * dt;
+    if (input.up) followHeight = Math.min(12, followHeight + heightSpeed);
+    if (input.down) followHeight = Math.max(0.5, followHeight - heightSpeed);
+
+    // Compute velocity direction from frame-to-frame delta
+    const dx = targetPos.x - followPrevPos.x;
+    const dz = targetPos.z - followPrevPos.z;
+    const speed = Math.sqrt(dx * dx + dz * dz);
+    followPrevPos.copy(targetPos);
+
+    // Offset: trail behind direction of travel, or fixed offset if nearly stationary
+    let offsetX: number;
+    let offsetZ: number;
+    if (speed > 0.001) {
+      // Normalize and scale to follow distance
+      const invSpeed = 1 / speed;
+      offsetX = -dx * invSpeed * followDist;
+      offsetZ = -dz * invSpeed * followDist;
+    } else {
+      // Fixed offset when target is stationary
+      offsetX = 0;
+      offsetZ = -followDist;
+    }
+
+    const desiredX = targetPos.x + offsetX;
+    const desiredY = targetPos.y + followHeight;
+    const desiredZ = targetPos.z + offsetZ;
+
+    // Smooth camera position with damping
+    const lerp = Math.min(1, 3 * dt);
+    const camPos = camera.getPosition();
+    camera.setPosition(
+      camPos.x + (desiredX - camPos.x) * lerp,
+      camPos.y + (desiredY - camPos.y) * lerp,
+      camPos.z + (desiredZ - camPos.z) * lerp,
+    );
+
+    // Drain unused mouse deltas
+    mouseDelta.x = 0;
+    mouseDelta.y = 0;
+
+    camera.lookAt(targetPos);
   }
 
   // --- Resize ---
@@ -507,6 +602,13 @@ export function createScene(
       prevEffectiveMode = mode;
       if (mode === 'orbit') {
         syncOrbitFromCamera();
+      }
+      if (mode === 'follow') {
+        followInitialized = false;
+        // Auto-select first followable if none selected
+        if (!followTargetId && followableIds.length > 0) {
+          followTargetId = followableIds[0];
+        }
       }
     },
 
@@ -546,6 +648,25 @@ export function createScene(
 
     getCompassAngle() {
       return computeCompassAngle();
+    },
+
+    getFollowableEntities() {
+      return [...followableIds];
+    },
+
+    getFollowTarget() {
+      return followTargetId;
+    },
+
+    cycleFollowTarget() {
+      if (followableIds.length === 0) return null;
+      const currentIdx = followTargetId
+        ? followableIds.indexOf(followTargetId)
+        : -1;
+      const nextIdx = (currentIdx + 1) % followableIds.length;
+      followTargetId = followableIds[nextIdx];
+      followInitialized = false;
+      return followTargetId;
     },
 
     loadContent,
