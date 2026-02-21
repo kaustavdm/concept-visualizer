@@ -2,6 +2,7 @@
   import { onMount } from 'svelte';
   import { settingsStore } from '$lib/stores/settings';
   import { createScene, type SceneController, type CameraMode } from '$lib/3d/createScene';
+  import { solarScene } from '$lib/3d/scenes/solar';
   import MovementDial from '$lib/components/3d/MovementDial.svelte';
   import HexagonDial from '$lib/components/3d/HexagonDial.svelte';
   import KeyboardHelp from '$lib/components/3d/KeyboardHelp.svelte';
@@ -51,6 +52,7 @@
     applyTheme(initialTheme);
 
     const s = createScene(canvas, initialTheme);
+    s.loadContent(solarScene);
     scene = s;
 
     // Listen for OS dark/light preference changes (only applies in system mode)
