@@ -4,6 +4,7 @@
   import { createScene, type SceneController, type CameraMode } from '$lib/3d/createScene';
   import MovementDial from '$lib/components/3d/MovementDial.svelte';
   import HexagonDial from '$lib/components/3d/HexagonDial.svelte';
+  import KeyboardHelp from '$lib/components/3d/KeyboardHelp.svelte';
   import { SCENE_BAY, APP_BAY, DEFAULT_SELECTIONS } from '$lib/components/3d/hexagon-dial-bays';
 
   let canvas: HTMLCanvasElement;
@@ -19,6 +20,7 @@
   let dialActivateOption: number | null = $state(null);
   let dialDismiss = $state(false);
   let keyActiveActions = $state(new Set<string>());
+  let helpVisible = $state(false);
 
   function resolveSystemTheme(): 'light' | 'dark' {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -87,6 +89,20 @@
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.repeat) return;
+
+    // '?' toggles help overlay (Shift+/ on US layout)
+    if (e.key === '?') {
+      helpVisible = !helpVisible;
+      return;
+    }
+
+    // When help is visible, only Escape closes it — block all other keys
+    if (helpVisible) {
+      if (e.key === 'Escape') {
+        helpVisible = false;
+      }
+      return;
+    }
 
     if (e.key === 'Escape') {
       dialDismiss = true;
@@ -266,6 +282,14 @@
       activateCenter={dialActivateCenter}
       activateOptionIndex={dialActivateOption}
       dismiss={dialDismiss}
+    />
+  {/if}
+
+  {#if helpVisible}
+    <KeyboardHelp
+      bays={dialBays}
+      {activeBayIndex}
+      onClose={() => { helpVisible = false; }}
     />
   {/if}
 </div>
