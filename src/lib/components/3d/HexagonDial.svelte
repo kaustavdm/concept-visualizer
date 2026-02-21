@@ -140,8 +140,9 @@
     if (fanFadeTimer) { clearTimeout(fanFadeTimer); fanFadeTimer = null; }
   }
 
-  // Schedule auto-close: 3s visible → 300ms fade → remove from DOM
-  function scheduleFanClose() {
+  // Schedule auto-close: delayMs visible → 300ms fade → remove from DOM
+  // 15s when fan opens without selection, 5s after an option is selected/cycled
+  function scheduleFanClose(delayMs: number) {
     cancelFanTimers();
     fanCloseTimer = setTimeout(() => {
       fanCloseTimer = null;
@@ -151,7 +152,7 @@
         openFace = null;
         onFanStateChange?.(false);
       }, 300);
-    }, 3000);
+    }, delayMs);
   }
 
   // Immediate close: Escape, click outside, bay switch
@@ -179,10 +180,10 @@
       const idx = face.options.findIndex((o) => o.id === currentSel);
       const nextIdx = (idx + 1) % face.options.length;
       onSelect(face.id, face.options[nextIdx].id);
-      scheduleFanClose();
+      scheduleFanClose(5000);
       return;
     }
-    // Different face → cancel old timers, open new fan, start timer
+    // Different face → cancel old timers, open new fan, start browse timer
     cancelFanTimers();
     openFace = face.id;
     fanVisible = false;
@@ -190,13 +191,13 @@
     requestAnimationFrame(() => {
       fanVisible = true;
     });
-    scheduleFanClose();
+    scheduleFanClose(15000);
   }
 
   function handleOptionClick(faceId: string, optionId: string) {
     flashActivated();
     onSelect(faceId, optionId);
-    scheduleFanClose();
+    scheduleFanClose(5000);
   }
 
   function handleWindowClick(e: MouseEvent) {
