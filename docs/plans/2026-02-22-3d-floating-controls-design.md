@@ -14,15 +14,15 @@ A floating control system for the 3D visualization view (`/3d`). All UI is glass
 │                     3D SCENE                         │
 │                                                      │
 │                                          ⬡ Hex Dial  │
-│  ◯ CameraPad                             (6 faces)  │
+│  ◯ MovementDial                             (6 faces)  │
 │  ⬡⬡ zoom                                            │
 └──────────────────────────────────────────────────────┘
 ```
 
-- **Bottom-left**: CameraPad — circular d-pad with compass center + hex zoom buttons
-- **Right, vertically centered**: HexDial — circle-in-hexagon with 6 scene control faces
-- **Top-left**: Camera mode badge (reads from HexDial Camera face selection)
-- Top-right theme toggle: removed (theme moves into HexDial)
+- **Bottom-left**: MovementDial — circular d-pad with compass center + hex zoom buttons
+- **Right, vertically centered**: SceneDial — circle-in-hexagon with 6 scene control faces
+- **Top-left**: Camera mode badge (reads from SceneDial Camera face selection)
+- Top-right theme toggle: removed (theme moves into SceneDial)
 
 ## Keyboard Shortcuts
 
@@ -34,7 +34,7 @@ A floating control system for the 3D visualization view (`/3d`). All UI is glass
 | F | Toggle browser fullscreen |
 | H | Toggle all floating control visibility |
 
-## CameraPad (Bottom-Left)
+## MovementDial (Bottom-Left)
 
 Existing circular d-pad with triangular directional buttons and hexagonal zoom pair.
 
@@ -44,9 +44,9 @@ The center button becomes a live compass pointing toward 0,0,0:
 
 - A directional needle inside the center circle rotates in real-time based on the camera's position relative to the scene origin
 - **Click**: smoothly rotates camera to face 0,0,0 from current position (~500ms ease-out lerp, no position change)
-- Camera mode toggle (orbit/fly) moves to the HexDial's Camera face
+- Camera mode toggle (orbit/fly) moves to the SceneDial's Camera face
 
-## HexDial (Right Side)
+## SceneDial (Right Side)
 
 A circle inscribed in a flat-top hexagon. The 6 trapezoidal regions between the inner circle and hex edges are tappable control faces.
 
@@ -89,7 +89,7 @@ When a hex face is tapped (except simple toggles like Theme):
 ### Geometric Language
 
 - **Circles**: buttons, center indicators, fan-out options, compass
-- **Triangles**: directional navigation (CameraPad)
+- **Triangles**: directional navigation (MovementDial)
 - **Hexagons**: zoom buttons, dial body, structural frames
 - **Rectangles**: reserved for future floating panels (text, content lists)
 
@@ -102,7 +102,7 @@ All floating controls use:
 
 ### Idle Behavior
 
-Both CameraPad and HexDial fade to 40% opacity after 3s of no interaction. Mouse movement or interaction restores full opacity.
+Both MovementDial and SceneDial fade to 40% opacity after 3s of no interaction. Mouse movement or interaction restores full opacity.
 
 ### Control Visibility (H Key)
 
@@ -126,7 +126,7 @@ Controls emit selections. Scene implementations will be wired progressively duri
 
 | Component | Location | Description |
 |-----------|----------|-------------|
-| HexDial.svelte | src/lib/components/3d/ | The 6-face hex dial with center circle and fan-out |
-| CameraPad.svelte | src/lib/components/3d/ | Updated: compass center replacing mode toggle |
+| SceneDial.svelte | src/lib/components/3d/ | New: 6-face hex dial with center circle and fan-out |
+| MovementDial.svelte | src/lib/components/3d/ | Renamed from CameraPad: compass center replacing mode toggle |
 | createScene.ts | src/lib/3d/ | Updated: lookAtOrigin(), getCompassAngle() |
-| +page.svelte | src/routes/3d/ | Updated: F/H keys, remove theme toggle, add HexDial |
+| +page.svelte | src/routes/3d/ | Updated: F/H keys, remove theme toggle, add SceneDial |
