@@ -1,5 +1,7 @@
 import type { SceneContent } from '../scene-content.types';
-import * as pc from 'playcanvas';
+import type { Layer3d, SerializableEntitySpec } from '../types';
+import type { AnimationDSL } from '../animation-dsl';
+import { composeLayers } from '../compositor';
 
 /** Theme-specific sphere material colors */
 const SPHERE_THEMES = {
@@ -16,133 +18,171 @@ const SPHERE_THEMES = {
 };
 
 /** Blue sphere orbit around pyramid */
-const SPHERE_ORBIT_RADIUS = 8; // near-circular orbit around pyramid at (10,0,0)
-const SPHERE_ORBIT_SPEED = 0.3; // radians/sec (~21s per revolution)
+const SPHERE_ORBIT_RADIUS = 8;
+const SPHERE_ORBIT_SPEED = 0.3; // radians/sec
 
-/** Moon orbit parameters — 2.5× blue sphere visual radius (0.75) */
-const BLUE_SPHERE_RADIUS = 0.75; // half of scale 1.5
-const MOON_ORBIT_A = BLUE_SPHERE_RADIUS * 2.5; // 1.875 semi-major
-const MOON_ORBIT_B = BLUE_SPHERE_RADIUS * 2.2; // slightly elliptical
+/** Moon orbit parameters — 2.5x blue sphere visual radius (0.75) */
+const BLUE_SPHERE_RADIUS = 0.75;
+const MOON_ORBIT_RADIUS = BLUE_SPHERE_RADIUS * 2.5; // 1.875
 const MOON_ORBIT_TILT = Math.PI / 4; // 45 degrees from grid plane
+const MOON_ORBIT_SPEED = 0.6; // radians/sec
 
 /** Pyramid position — center of the blue sphere's orbit */
 const PYRAMID_POS: [number, number, number] = [0, 0, 0];
 
-export const solarScene: SceneContent = {
-  id: 'solar',
-  name: 'Solar System',
+// --- Layer: ground (order 0) — grid floor ---
 
-  entities: [
-    // Blue sphere — orbits around pyramid, continues to bob
-    {
-      id: 'sphere',
-      mesh: 'sphere',
-      material: {
-        diffuse: SPHERE_THEMES.light.diffuse,
-        emissive: SPHERE_THEMES.light.emissive,
-        specular: SPHERE_THEMES.light.specular,
-        metalness: 0.3,
-        gloss: 0.75,
-      },
-      scale: [1.5, 1.5, 1.5],
-      followable: true,
-      animate: (entity, ctx) => {
-        const bobY = Math.sin(ctx.time * 0.8) * 0.25;
-        const angle = ctx.time * SPHERE_ORBIT_SPEED;
-        const x = PYRAMID_POS[0] + Math.cos(angle) * SPHERE_ORBIT_RADIUS;
-        const z = PYRAMID_POS[2] + Math.sin(angle) * SPHERE_ORBIT_RADIUS;
-        entity.setPosition(x, bobY, z);
-        entity.setLocalEulerAngles(
-          0,
-          ctx.time * 12,
-          Math.sin(ctx.time * 0.5) * 5,
-        );
-      },
+const floorEntity: SerializableEntitySpec = {
+  id: 'floor',
+  mesh: 'plane',
+  material: {
+    diffuse: [0.5, 0.5, 0.55],
+  },
+  position: [0, -1, 0],
+  scale: [80, 1, 80],
+  opacity: { map: 'grid', tiling: 4, blend: true },
+};
+
+// --- Layer: structures (order 1) — static pyramid ---
+
+const pyramidEntity: SerializableEntitySpec = {
+  id: 'pyramid',
+  mesh: {
+    type: 'cone',
+    capSegments: 4,
+    baseRadius: 1,
+    peakRadius: 0,
+    height: 2,
+    heightSegments: 1,
+  },
+  material: {
+    diffuse: [0.76, 0.7, 0.5],
+    emissive: [0.06, 0.05, 0.03],
+    specular: [0.4, 0.35, 0.25],
+    metalness: 0.1,
+    gloss: 0.4,
+  },
+  position: PYRAMID_POS,
+  rotation: [0, 45, 0],
+};
+
+// --- Layer: orbiting (order 2) — sphere + moon ---
+
+/**
+ * Sphere animation: orbits origin at radius 8, speed 0.3 rad/s,
+ * bobs with amplitude 0.25 at speed 0.8, rotates Y at 12 deg/s.
+ *
+ * Note: the original also had a subtle Z-axis wobble
+ * (Math.sin(ctx.time * 0.5) * 5) which cannot be expressed in the
+ * current rotate DSL (constant speed only). This is a minor
+ * aesthetic loss.
+ */
+const sphereAnimation: AnimationDSL = [
+  {
+    type: 'orbit',
+    radius: SPHERE_ORBIT_RADIUS,
+    speed: SPHERE_ORBIT_SPEED,
+    bob: { amplitude: 0.25, speed: 0.8 },
+  },
+  { type: 'rotate', axis: 'y', speed: 12 },
+];
+
+const sphereEntity: SerializableEntitySpec = {
+  id: 'sphere',
+  mesh: 'sphere',
+  material: {
+    diffuse: SPHERE_THEMES.light.diffuse,
+    emissive: SPHERE_THEMES.light.emissive,
+    specular: SPHERE_THEMES.light.specular,
+    metalness: 0.3,
+    gloss: 0.75,
+  },
+  scale: [1.5, 1.5, 1.5],
+  followable: true,
+  animate: sphereAnimation,
+  themeResponse: {
+    light: {
+      diffuse: SPHERE_THEMES.light.diffuse,
+      emissive: SPHERE_THEMES.light.emissive,
+      specular: SPHERE_THEMES.light.specular,
     },
-
-    // Sandy pyramid — static at center
-    {
-      id: 'pyramid',
-      mesh: {
-        type: 'cone',
-        capSegments: 4,
-        baseRadius: 1,
-        peakRadius: 0,
-        height: 2,
-        heightSegments: 1,
-      },
-      material: {
-        diffuse: [0.76, 0.7, 0.5],
-        emissive: [0.06, 0.05, 0.03],
-        specular: [0.4, 0.35, 0.25],
-        metalness: 0.1,
-        gloss: 0.4,
-      },
-      position: PYRAMID_POS,
-      rotation: [0, 45, 0],
+    dark: {
+      diffuse: SPHERE_THEMES.dark.diffuse,
+      emissive: SPHERE_THEMES.dark.emissive,
+      specular: SPHERE_THEMES.dark.specular,
     },
-
-    // Silver moon — orbits blue sphere with tighter orbit
-    {
-      id: 'moon',
-      mesh: 'sphere',
-      material: {
-        diffuse: [0.75, 0.75, 0.78],
-        emissive: [0.04, 0.04, 0.05],
-        specular: [0.9, 0.9, 0.92],
-        metalness: 0.6,
-        gloss: 0.85,
-      },
-      scale: [0.15, 0.15, 0.15],
-      followable: true,
-      animate: (entity, ctx) => {
-        const sphere = ctx.entities['sphere'];
-        const spherePos = sphere?.getPosition();
-        const sphereX = spherePos?.x ?? 0;
-        const sphereY = spherePos?.y ?? 0;
-        const sphereZ = spherePos?.z ?? 0;
-        const angle = ctx.time * 0.6; // ~10s per revolution
-        const moonX = Math.cos(angle) * MOON_ORBIT_A;
-        const moonY = Math.sin(angle) * MOON_ORBIT_B * Math.sin(MOON_ORBIT_TILT);
-        const moonZ = Math.sin(angle) * MOON_ORBIT_B * Math.cos(MOON_ORBIT_TILT);
-        entity.setPosition(
-          sphereX + moonX,
-          sphereY + moonY,
-          sphereZ + moonZ,
-        );
-      },
-    },
-
-    // Grid floor — transparent grid pattern
-    {
-      id: 'floor',
-      mesh: 'plane',
-      material: {
-        diffuse: [0.5, 0.5, 0.55],
-      },
-      position: [0, -1, 0],
-      scale: [80, 1, 80],
-      opacity: { map: 'grid', tiling: 4, blend: true },
-    },
-  ],
-
-  onThemeChange: (theme, entities) => {
-    const sphereEntity = entities['sphere'];
-    if (!sphereEntity?.render) return;
-    const mat = sphereEntity.render.meshInstances[0]
-      .material as pc.StandardMaterial;
-    const colors = SPHERE_THEMES[theme];
-    mat.diffuse.set(colors.diffuse[0], colors.diffuse[1], colors.diffuse[2]);
-    mat.emissive.set(
-      colors.emissive[0],
-      colors.emissive[1],
-      colors.emissive[2],
-    );
-    mat.specular.set(
-      colors.specular[0],
-      colors.specular[1],
-      colors.specular[2],
-    );
-    mat.update();
   },
 };
+
+/**
+ * Moon animation: orbits the sphere with a tilted orbit.
+ *
+ * Uses the namespaced entity ID 'orbiting:sphere' since the
+ * compositor prefixes entity IDs with `${layerId}:${entityId}`.
+ *
+ * Note: the original used slightly elliptical orbit (semi-major 1.875,
+ * semi-minor 1.65). The DSL orbit is circular, using radius 1.875.
+ * This is a minor visual simplification (~12% difference in one axis).
+ */
+const moonAnimation: AnimationDSL = {
+  type: 'orbit',
+  center: 'orbiting:sphere',
+  radius: MOON_ORBIT_RADIUS,
+  speed: MOON_ORBIT_SPEED,
+  tilt: MOON_ORBIT_TILT,
+};
+
+const moonEntity: SerializableEntitySpec = {
+  id: 'moon',
+  mesh: 'sphere',
+  material: {
+    diffuse: [0.75, 0.75, 0.78],
+    emissive: [0.04, 0.04, 0.05],
+    specular: [0.9, 0.9, 0.92],
+    metalness: 0.6,
+    gloss: 0.85,
+  },
+  scale: [0.15, 0.15, 0.15],
+  followable: true,
+  animate: moonAnimation,
+};
+
+// --- Compose layers ---
+
+const now = new Date();
+
+export const solarLayers: Layer3d[] = [
+  {
+    id: 'ground',
+    name: 'Ground',
+    visible: true,
+    text: '',
+    entities: [floorEntity],
+    order: 0,
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: 'structures',
+    name: 'Structures',
+    visible: true,
+    text: '',
+    entities: [pyramidEntity],
+    order: 1,
+    createdAt: now,
+    updatedAt: now,
+  },
+  {
+    id: 'orbiting',
+    name: 'Orbiting Bodies',
+    visible: true,
+    text: '',
+    entities: [sphereEntity, moonEntity],
+    order: 2,
+    createdAt: now,
+    updatedAt: now,
+  },
+];
+
+/** Backward-compatible SceneContent export — composed from layers */
+export const solarScene: SceneContent = composeLayers(solarLayers, 'solar');
