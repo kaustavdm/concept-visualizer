@@ -1,10 +1,10 @@
 import { writable, get } from 'svelte/store';
 import { v4 as uuid } from 'uuid';
 import { db } from '$lib/db';
-import type { File3d, Layer3d } from '$lib/3d/types';
+import type { Scene3d, Layer3d, ChatMessage } from '$lib/3d/entity-spec';
 
 interface Files3dState {
-  files: File3d[];
+  files: Scene3d[];
   activeFileId: string | null;
 }
 
@@ -23,32 +23,34 @@ function createFiles3dStore() {
     });
   }
 
-  async function create(title: string): Promise<File3d> {
-    const now = new Date();
+  async function create(title: string): Promise<Scene3d> {
+    const now = new Date().toISOString();
     const defaultLayer: Layer3d = {
       id: uuid(),
       name: 'Layer 1',
       visible: true,
       text: '',
       entities: [],
-      order: 0,
+      position: 'n',
+      source: { type: 'manual' },
       createdAt: now,
       updatedAt: now,
     };
-    const file: File3d = {
+    const scene: Scene3d = {
       id: uuid(),
       title,
       createdAt: now,
       updatedAt: now,
       layers: [defaultLayer],
-      theme: 'light',
+      version: 1,
+      messages: [],
     };
-    await db.files3d.add(file);
+    await db.files3d.add(scene);
     update(s => ({
-      files: [file, ...s.files],
-      activeFileId: file.id
+      files: [scene, ...s.files],
+      activeFileId: scene.id
     }));
-    return file;
+    return scene;
   }
 
   async function remove(id: string) {
@@ -63,7 +65,7 @@ function createFiles3dStore() {
   }
 
   async function rename(id: string, title: string) {
-    const now = new Date();
+    const now = new Date().toISOString();
     await db.files3d.update(id, { title, updatedAt: now });
     update(s => ({
       ...s,
@@ -72,7 +74,7 @@ function createFiles3dStore() {
   }
 
   async function updateLayers(id: string, layers: Layer3d[]) {
-    const now = new Date();
+    const now = new Date().toISOString();
     await db.files3d.update(id, { layers, updatedAt: now });
     update(s => ({
       ...s,
@@ -80,12 +82,25 @@ function createFiles3dStore() {
     }));
   }
 
-  async function updateCamera(id: string, camera: File3d['camera']) {
-    const now = new Date();
-    await db.files3d.update(id, { camera, updatedAt: now });
+  async function addMessage(id: string, message: ChatMessage) {
+    const now = new Date().toISOString();
+    const state = get({ subscribe });
+    const file = state.files.find(f => f.id === id);
+    if (!file) return;
+    const messages = [...(file.messages ?? []), message];
+    await db.files3d.update(id, { messages, updatedAt: now });
     update(s => ({
       ...s,
-      files: s.files.map(f => f.id === id ? { ...f, camera, updatedAt: now } : f)
+      files: s.files.map(f => f.id === id ? { ...f, messages, updatedAt: now } : f)
+    }));
+  }
+
+  async function updateEnvironment(id: string, environment: Scene3d['environment']) {
+    const now = new Date().toISOString();
+    await db.files3d.update(id, { environment, updatedAt: now });
+    update(s => ({
+      ...s,
+      files: s.files.map(f => f.id === id ? { ...f, environment, updatedAt: now } : f)
     }));
   }
 
@@ -100,7 +115,8 @@ function createFiles3dStore() {
     remove,
     rename,
     updateLayers,
-    updateCamera,
+    addMessage,
+    updateEnvironment,
     setActive
   };
 }
