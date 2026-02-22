@@ -2,11 +2,18 @@
   import { onMount } from 'svelte';
   import { settingsStore } from '$lib/stores/settings';
   import { createScene, type SceneController, type CameraMode } from '$lib/3d/createScene';
-  import { solarScene } from '$lib/3d/scenes/solar';
+  import { files3dStore } from '$lib/stores/files3d';
+  import { composeLayers } from '$lib/3d/compositor';
+  import { solarLayers } from '$lib/3d/scenes/solar';
   import MovementDial from '$lib/components/3d/MovementDial.svelte';
   import HexagonDial from '$lib/components/3d/HexagonDial.svelte';
   import KeyboardHelp from '$lib/components/3d/KeyboardHelp.svelte';
+  import LayersPanel from '$lib/components/3d/LayersPanel.svelte';
+  import FileBrowserHex from '$lib/components/3d/FileBrowserHex.svelte';
   import { SCENE_BAY, APP_BAY, DEFAULT_SELECTIONS } from '$lib/components/3d/hexagon-dial-bays';
+  import type { Layer3d, SerializableEntitySpec, File3d } from '$lib/3d/types';
+  import { get } from 'svelte/store';
+  import { v4 as uuid } from 'uuid';
 
   let canvas: HTMLCanvasElement;
   let scene: SceneController | null = $state(null);
@@ -22,6 +29,10 @@
   let dialDismiss = $state(false);
   let keyActiveActions = $state(new Set<string>());
   let helpVisible = $state(false);
+  let layersPanelVisible = $state(true);
+  let storeFiles: File3d[] = $state([]);
+  let storeActiveFileId: string | null = $state(null);
+  let activeLayers: Layer3d[] = $state([]);
 
   function resolveSystemTheme(): 'light' | 'dark' {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -54,8 +65,21 @@
     applyTheme(initialTheme);
 
     const s = createScene(canvas, initialTheme);
-    s.loadContent(solarScene);
     scene = s;
+
+    // Initialize 3D file store
+    files3dStore.init().then(async () => {
+      const state = get(files3dStore);
+      if (state.files.length === 0) {
+        const file = await files3dStore.create('Solar System');
+        await files3dStore.updateLayers(file.id, structuredClone(solarLayers));
+      }
+      syncFromStore();
+    });
+
+    const unsub3d = files3dStore.subscribe(() => {
+      syncFromStore();
+    });
 
     // Listen for OS dark/light preference changes (only applies in system mode)
     const mql = window.matchMedia('(prefers-color-scheme: dark)');
@@ -85,11 +109,78 @@
     return () => {
       mql.removeEventListener('change', onSystemChange);
       unsub();
+      unsub3d();
       cancelAnimationFrame(raf);
       s.destroy();
       scene = null;
     };
   });
+
+  function syncFromStore() {
+    const state = get(files3dStore);
+    storeFiles = state.files;
+    storeActiveFileId = state.activeFileId;
+    const activeFile = state.files.find(f => f.id === state.activeFileId);
+    if (activeFile) {
+      activeLayers = activeFile.layers;
+      const content = composeLayers(activeFile.layers, activeFile.id);
+      scene?.loadContent(content);
+    }
+  }
+
+  function handleToggleVisibility(layerId: string) {
+    const updated = activeLayers.map(l =>
+      l.id === layerId ? { ...l, visible: !l.visible } : l
+    );
+    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
+  }
+
+  function handleUpdateText(layerId: string, text: string) {
+    const updated = activeLayers.map(l =>
+      l.id === layerId ? { ...l, text, updatedAt: new Date() } : l
+    );
+    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
+  }
+
+  function handleUpdateEntities(layerId: string, entities: SerializableEntitySpec[]) {
+    const updated = activeLayers.map(l =>
+      l.id === layerId ? { ...l, entities, updatedAt: new Date() } : l
+    );
+    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
+  }
+
+  function handleAddLayer() {
+    const now = new Date();
+    const newLayer: Layer3d = {
+      id: uuid(),
+      name: `Layer ${activeLayers.length + 1}`,
+      visible: true,
+      text: '',
+      entities: [],
+      order: activeLayers.length,
+      createdAt: now,
+      updatedAt: now,
+    };
+    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, [...activeLayers, newLayer]);
+  }
+
+  function handleRemoveLayer(layerId: string) {
+    const updated = activeLayers.filter(l => l.id !== layerId);
+    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
+  }
+
+  // File browser callbacks
+  async function handleCreateFile() {
+    await files3dStore.create('Untitled Scene');
+  }
+
+  function handleSelectFile(id: string) {
+    files3dStore.setActive(id);
+  }
+
+  async function handleDeleteFile(id: string) {
+    await files3dStore.remove(id);
+  }
 
   function handleKeyDown(e: KeyboardEvent) {
     if (e.repeat) return;
@@ -279,6 +370,25 @@
   <canvas bind:this={canvas} class="block w-full h-full"></canvas>
 
   {#if controlsVisible}
+    <FileBrowserHex
+      files={storeFiles}
+      activeFileId={storeActiveFileId}
+      onSelectFile={handleSelectFile}
+      onCreateFile={handleCreateFile}
+      onDeleteFile={handleDeleteFile}
+    />
+
+    {#if layersPanelVisible}
+      <LayersPanel
+        layers={activeLayers}
+        onToggleVisibility={handleToggleVisibility}
+        onUpdateText={handleUpdateText}
+        onUpdateEntities={handleUpdateEntities}
+        onAddLayer={handleAddLayer}
+        onRemoveLayer={handleRemoveLayer}
+      />
+    {/if}
+
     <!-- Movement dial: bottom-left -->
     <MovementDial
       {compassAngle}
@@ -344,7 +454,7 @@
   .help-hex {
     position: absolute;
     top: 16px;
-    right: 16px;
+    right: 302px; /* 280px panel + 16px gap + 6px for hex */
     z-index: 20;
     background: none;
     border: none;
