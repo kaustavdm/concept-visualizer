@@ -70,7 +70,7 @@ const pyramidEntity: SerializableEntitySpec = {
 
 /**
  * Sphere animation: orbits origin at radius 8, speed 0.3 rad/s,
- * bobs with amplitude 0.25 at speed 0.8, rotates Y at 12 deg/s.
+ * bobs with amplitude 0.25 at speed 0.8, rotates Y at 12 deg/s (~1/30 rev/s).
  *
  * Note: the original also had a subtle Z-axis wobble
  * (Math.sin(ctx.time * 0.5) * 5) which cannot be expressed in the
@@ -84,7 +84,7 @@ const sphereAnimation: AnimationDSL = [
     speed: SPHERE_ORBIT_SPEED,
     bob: { amplitude: 0.25, speed: 0.8 },
   },
-  { type: 'rotate', axis: 'y', speed: 12 },
+  { type: 'rotate', axis: 'y', speed: 12 / 360 },
 ];
 
 const sphereEntity: SerializableEntitySpec = {

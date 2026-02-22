@@ -103,7 +103,7 @@ describe('composeLayers', () => {
   });
 
   it('resolves AnimationDSL to animate callbacks', () => {
-    const dsl: AnimationDSL = { type: 'rotate', axis: 'y', speed: 90 };
+    const dsl: AnimationDSL = { type: 'rotate', axis: 'y', speed: 0.25 };
     const layers = [
       makeLayer({
         id: 'L',
@@ -118,9 +118,10 @@ describe('composeLayers', () => {
 
     // Verify it actually works — call with a mock entity
     const mockEnt = {
-      setLocalEulerAngles: vi.fn(),
+      setEulerAngles: vi.fn(),
       setPosition: vi.fn(),
       getPosition: vi.fn(() => ({ x: 0, y: 0, z: 0 })),
+      getEulerAngles: vi.fn(() => ({ x: 0, y: 0, z: 0 })),
     };
     result.entities[0].animate!(mockEnt as any, {
       time: 1,
@@ -128,8 +129,8 @@ describe('composeLayers', () => {
       entities: {},
     });
 
-    // rotate Y at 90 deg/s * 1s = 90 degrees
-    expect(mockEnt.setLocalEulerAngles).toHaveBeenCalledWith(0, 90, 0);
+    // rotate Y at 0.25 rev/s * 1s * 360 = 90 degrees (base rotation is 0)
+    expect(mockEnt.setEulerAngles).toHaveBeenCalledWith(0, 90, 0);
   });
 
   it('generates onThemeChange from themeResponse fields', () => {

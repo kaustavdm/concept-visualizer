@@ -21,7 +21,7 @@ export interface RotateAnimation {
   type: 'rotate';
   /** Axis to rotate around */
   axis: 'x' | 'y' | 'z';
-  /** Rotation speed in degrees per second */
+  /** Rotation speed in revolutions per second */
   speed: number;
 }
 
@@ -31,8 +31,22 @@ export interface BobAnimation {
   amplitude: number;
   /** Oscillation frequency multiplier (1 = one full cycle every 2*PI seconds) */
   speed: number;
-  /** Axis to bob along (defaults to 'y') */
-  axis?: 'y';
+}
+
+export interface ScaleAnimation {
+  type: 'scale';
+  /** Minimum scale factor */
+  min: number;
+  /** Maximum scale factor */
+  max: number;
+  /** Oscillation speed */
+  speed: number;
+}
+
+export interface LookAtAnimation {
+  type: 'lookat';
+  /** Entity ID to face */
+  target: string;
 }
 
 export interface PathAnimation {
@@ -50,6 +64,8 @@ export type AnimationDSL =
   | RotateAnimation
   | BobAnimation
   | PathAnimation
+  | ScaleAnimation
+  | LookAtAnimation
   | AnimationDSL[];
 
 // --- Resolver ---
@@ -57,19 +73,28 @@ export type AnimationDSL =
 type AnimateFn = (entity: pc.Entity, ctx: AnimationContext) => void;
 
 function resolveRotate(dsl: RotateAnimation): AnimateFn {
+  let baseRotation: { x: number; y: number; z: number } | null = null;
   return (entity, ctx) => {
-    const degrees = dsl.speed * ctx.time;
-    const x = dsl.axis === 'x' ? degrees : 0;
-    const y = dsl.axis === 'y' ? degrees : 0;
-    const z = dsl.axis === 'z' ? degrees : 0;
-    entity.setLocalEulerAngles(x, y, z);
+    const euler = entity.getEulerAngles();
+    if (baseRotation === null) {
+      baseRotation = { x: euler.x, y: euler.y, z: euler.z };
+    }
+    const angle = ctx.time * dsl.speed * 360;
+    entity.setEulerAngles(
+      baseRotation.x + (dsl.axis === 'x' ? angle : 0),
+      baseRotation.y + (dsl.axis === 'y' ? angle : 0),
+      baseRotation.z + (dsl.axis === 'z' ? angle : 0),
+    );
   };
 }
 
 function resolveBob(dsl: BobAnimation): AnimateFn {
+  let baseY: number | null = null;
   return (entity, ctx) => {
-    const y = Math.sin(ctx.time * dsl.speed) * dsl.amplitude;
-    entity.setPosition(0, y, 0);
+    const pos = entity.getPosition();
+    if (baseY === null) baseY = pos.y;
+    const y = baseY + Math.sin(ctx.time * dsl.speed) * dsl.amplitude;
+    entity.setPosition(pos.x, y, pos.z);
   };
 }
 
@@ -178,6 +203,23 @@ function resolvePath(dsl: PathAnimation): AnimateFn {
   };
 }
 
+function resolveScale(dsl: ScaleAnimation): AnimateFn {
+  return (entity, ctx) => {
+    const t = (Math.sin(ctx.time * dsl.speed) + 1) / 2; // 0-1 oscillation
+    const s = dsl.min + t * (dsl.max - dsl.min);
+    entity.setLocalScale(s, s, s);
+  };
+}
+
+function resolveLookAt(dsl: LookAtAnimation): AnimateFn {
+  return (entity, ctx) => {
+    const target = ctx.entities[dsl.target];
+    if (target) {
+      entity.lookAt(target.getPosition());
+    }
+  };
+}
+
 /**
  * Convert a declarative AnimationDSL config into a callback function
  * compatible with SceneEntitySpec.animate.
@@ -204,5 +246,9 @@ export function resolveAnimation(dsl: AnimationDSL): AnimateFn {
       return resolveOrbit(dsl);
     case 'path':
       return resolvePath(dsl);
+    case 'scale':
+      return resolveScale(dsl);
+    case 'lookat':
+      return resolveLookAt(dsl);
   }
 }
