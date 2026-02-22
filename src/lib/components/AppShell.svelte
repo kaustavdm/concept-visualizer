@@ -24,9 +24,7 @@
         <div class="flex-1 overflow-y-auto w-56">
           {@render sidebar()}
         </div>
-        <div class="p-3 w-56" style="border-top: 1px solid var(--border)">
-          <a href="/settings" class="text-xs" style="color: var(--text-muted)">Settings</a>
-        </div>
+        <div class="p-3 w-56" style="border-top: 1px solid var(--border)"></div>
       {/if}
     </aside>
     <button
