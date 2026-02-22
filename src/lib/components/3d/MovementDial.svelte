@@ -89,10 +89,10 @@
 
   // Directional triangles: [action, polygon points, key hint label, hint x, hint y, tooltip]
   const TRIANGLES: [string, string, string, number, number, string][] = [
-    ['pan_up', '64,50 96,50 80,12', 'W', 80, 37, 'Pan up (W)'],
-    ['pan_down', '64,110 96,110 80,148', 'S', 80, 123, 'Pan down (S)'],
-    ['pan_left', '50,64 50,96 12,80', 'A', 37, 80, 'Pan left (A)'],
-    ['pan_right', '110,64 110,96 148,80', 'D', 123, 80, 'Pan right (D)'],
+    ['pan_up', '64,50 96,50 80,12', 'W', 80, 37, 'Up (W)'],
+    ['pan_down', '64,110 96,110 80,148', 'S', 80, 123, 'Down (S)'],
+    ['pan_left', '50,64 50,96 12,80', 'A', 37, 80, 'Left (A)'],
+    ['pan_right', '110,64 110,96 148,80', 'D', 123, 80, 'Right (D)'],
   ];
 
   // Flat-top hexagon points (viewBox 0 0 34 30, centered at 17,15, R=14)
