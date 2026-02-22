@@ -137,6 +137,18 @@
       if (state.files.length === 0) {
         const file = await files3dStore.create('Terran System');
         await files3dStore.updateLayers(file.id, structuredClone(solarLayers));
+      } else {
+        // Migrate existing default scene: ensure floor entity has grid property
+        // (was lost during DSL redesign, causes solid plane instead of grid mesh)
+        const defaultFile = state.files.find(f => f.title === 'Terran System');
+        if (defaultFile) {
+          const ground = defaultFile.layers.find(l => l.id === 'ground');
+          const floor = ground?.entities.find(e => e.id === 'floor');
+          if (floor?.components?.render && !floor.components.render.grid) {
+            floor.components.render.grid = { tiling: 4 };
+            await files3dStore.updateLayers(defaultFile.id, structuredClone(defaultFile.layers));
+          }
+        }
       }
       syncFromStore();
     });
