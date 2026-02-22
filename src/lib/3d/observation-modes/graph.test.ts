@@ -1,0 +1,54 @@
+// src/lib/3d/observation-modes/graph.test.ts
+import { describe, it, expect } from 'vitest';
+import { graphMode } from './graph';
+import type { VisualizationSchema } from '$lib/types';
+
+const testSchema: VisualizationSchema = {
+	type: 'graph',
+	title: 'Test',
+	description: 'Test graph',
+	nodes: [
+		{ id: 'a', label: 'Node A', weight: 0.8, theme: 'core' },
+		{ id: 'b', label: 'Node B', weight: 0.5, theme: 'support' },
+	],
+	edges: [
+		{ source: 'a', target: 'b', label: 'relates', strength: 0.7 },
+	],
+	metadata: { concepts: ['A', 'B'], relationships: ['relates'] },
+};
+
+describe('graphMode', () => {
+	it('produces 3 layers: ground, concepts, connections', () => {
+		const layers = graphMode.render(testSchema, { theme: 'light' });
+		expect(layers).toHaveLength(3);
+		expect(layers.map(l => l.name)).toEqual(
+			expect.arrayContaining(['Ground', 'Concepts', 'Connections'])
+		);
+	});
+
+	it('creates one entity per node in concepts layer', () => {
+		const layers = graphMode.render(testSchema, { theme: 'light' });
+		const concepts = layers.find(l => l.name === 'Concepts')!;
+		expect(concepts.entities).toHaveLength(2);
+	});
+
+	it('creates one entity per edge in connections layer', () => {
+		const layers = graphMode.render(testSchema, { theme: 'light' });
+		const connections = layers.find(l => l.name === 'Connections')!;
+		expect(connections.entities).toHaveLength(1);
+	});
+
+	it('applies weight to node scale', () => {
+		const layers = graphMode.render(testSchema, { theme: 'light' });
+		const concepts = layers.find(l => l.name === 'Concepts')!;
+		const nodeA = concepts.entities.find(e => e.label === 'Node A')!;
+		expect(nodeA.scale![0]).toBeGreaterThan(1);
+	});
+
+	it('tags layers with observation mode', () => {
+		const layers = graphMode.render(testSchema, { theme: 'light' });
+		for (const layer of layers) {
+			expect(layer.observationMode).toBe('graph');
+		}
+	});
+});
