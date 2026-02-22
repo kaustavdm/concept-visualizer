@@ -172,7 +172,7 @@
       // Check for first-time setup on first subscription fire
       if (!hasCheckedOnboarding) {
         hasCheckedOnboarding = true;
-        if (settings.llmEndpoint === 'http://localhost:11434/v1' && settings.llmModel === 'llama3.2') {
+        if (!settings.onboardingCompleted) {
           showOnboarding = true;
         }
       }

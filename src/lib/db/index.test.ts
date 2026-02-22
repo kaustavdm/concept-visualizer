@@ -15,7 +15,8 @@ describe('ConceptDB', () => {
       controlPlacement: 'hud',
       extractionEngine: 'llm',
       pipelineMode: 'auto',
-      llmRefinement: false
+      llmRefinement: false,
+      onboardingCompleted: false,
     });
 
     const settings = await db.settings.get('app-settings');

@@ -32,7 +32,8 @@ function defaultSettings() {
     controlPlacement: 'hud' as const,
     extractionEngine: 'nlp' as const,
     pipelineMode: 'auto' as const,
-    llmRefinement: false
+    llmRefinement: false,
+    onboardingCompleted: false,
   };
 }
 

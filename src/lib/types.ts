@@ -51,6 +51,7 @@ export interface AppSettings {
   extractionEngine: 'llm' | 'nlp' | 'keywords' | 'semantic';
   pipelineMode: 'auto' | 'manual';
   llmRefinement: boolean;
+  onboardingCompleted: boolean;
 }
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -61,5 +62,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
   controlPlacement: 'hud',
   extractionEngine: 'llm',
   pipelineMode: 'auto',
-  llmRefinement: false
+  llmRefinement: false,
+  onboardingCompleted: false,
 };

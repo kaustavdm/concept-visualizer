@@ -25,6 +25,7 @@
     await settingsStore.update({
       llmEndpoint: endpoint,
       llmModel: model,
+      onboardingCompleted: true,
     });
     onClose();
   }
