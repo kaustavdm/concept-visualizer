@@ -65,16 +65,22 @@ describe('parseVisualizationResponse', () => {
     expect(() => parseVisualizationResponse(raw)).not.toThrow();
   });
 
-  it('should throw when edge references invalid node', () => {
+  it('drops edges that reference invalid nodes instead of throwing', () => {
     const bad = JSON.stringify({
       type: 'graph',
       title: 'Test',
       description: 'Test',
-      nodes: [{ id: 'a', label: 'A' }],
-      edges: [{ source: 'a', target: 'nonexistent' }],
+      nodes: [{ id: 'a', label: 'A' }, { id: 'b', label: 'B' }],
+      edges: [
+        { source: 'a', target: 'nonexistent' },
+        { source: 'a', target: 'b', label: 'valid' },
+        { source: 'missing', target: 'b' },
+      ],
       metadata: { concepts: [], relationships: [] }
     });
-    expect(() => parseVisualizationResponse(bad)).toThrow();
+    const result = parseVisualizationResponse(bad);
+    expect(result.edges).toHaveLength(1);
+    expect(result.edges[0].label).toBe('valid');
   });
 });
 

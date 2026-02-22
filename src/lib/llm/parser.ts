@@ -41,14 +41,11 @@ export function parseVisualizationResponse(raw: string): VisualizationSchema {
 
   const nodeIds = new Set((obj.nodes as Array<{ id: string }>).map(n => n.id));
 
-  for (const edge of obj.edges as Array<{ source: string; target: string }>) {
-    if (!nodeIds.has(edge.source)) {
-      throw new Error(`Edge references invalid source node: ${edge.source}`);
-    }
-    if (!nodeIds.has(edge.target)) {
-      throw new Error(`Edge references invalid target node: ${edge.target}`);
-    }
-  }
+  // Drop edges with invalid node references instead of throwing
+  const validEdges = (obj.edges as Array<{ source: string; target: string }>).filter(edge =>
+    nodeIds.has(edge.source) && nodeIds.has(edge.target)
+  );
+  obj.edges = validEdges;
 
   return parsed as VisualizationSchema;
 }

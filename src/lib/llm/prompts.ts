@@ -12,7 +12,7 @@ const BASE_SCHEMA_DOC = `You MUST respond with ONLY valid JSON — no markdown, 
       "label": "Display Label",
       "details": "1-2 sentences describing this node's role",
       "weight": 0.8,
-      "theme": "short cluster/lane label",
+      "theme": "<cluster-label>",
       "narrativeRole": "central | supporting | contextual | outcome"
     }
   ],
@@ -37,8 +37,8 @@ ${BASE_SCHEMA_DOC}
 
 Field guidance:
 - "weight" (0.0–1.0): how central is this concept to the text?
-- "theme": a short thematic cluster label grouping related nodes
-- "narrativeRole": "central" = main subject; "supporting" = key actors; "contextual" = background; "outcome" = results
+- "theme": a short thematic cluster label grouping related nodes (e.g. "physics", "biology", "economy"). Must be a real descriptive word, NOT a placeholder.
+- "narrativeRole": MUST be exactly one of: "central", "supporting", "contextual", "outcome". "central" = main subject; "supporting" = key actors; "contextual" = background; "outcome" = results
 - "strength" on edges (0.0–1.0): how explicit and strong is this relationship?
 - "details": 1-2 sentences on this concept's specific role in the text
 
