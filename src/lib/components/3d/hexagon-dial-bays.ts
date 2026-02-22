@@ -13,6 +13,19 @@ export const SCENE_BAY: HexBayConfig = {
   },
   faces: [
     {
+      id: 'scenes',
+      label: 'Scenes',
+      isToggle: false,
+      options: [
+        { id: 'new', label: 'New' },
+        { id: 'clone', label: 'Clone' },
+        { id: 'list', label: 'List' },
+      ],
+      // Folder/file icon
+      iconPath:
+        'M10 4H4c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z',
+    },
+    {
       id: 'theme',
       label: 'Theme',
       isToggle: false,
@@ -22,19 +35,6 @@ export const SCENE_BAY: HexBayConfig = {
         { id: 'dark', label: 'Dark' },
       ],
       iconPath: 'M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5z',
-    },
-    {
-      id: 'lighting',
-      label: 'Lighting',
-      isToggle: false,
-      options: [
-        { id: 'studio', label: 'Studio' },
-        { id: 'dramatic', label: 'Dramatic' },
-        { id: 'soft', label: 'Soft' },
-        { id: 'ambient', label: 'Ambient' },
-      ],
-      iconPath:
-        'M9 21c0 .55.45 1 1 1h4c.55 0 1-.45 1-1v-1H9v1zm3-19C8.14 2 5 5.14 5 9c0 2.38 1.19 4.47 3 5.74V17c0 .55.45 1 1 1h6c.55 0 1-.45 1-1v-2.26c1.81-1.27 3-3.36 3-5.74 0-3.86-3.14-7-7-7z',
     },
     {
       id: 'environment',
@@ -178,8 +178,8 @@ export const APP_BAY: HexBayConfig = {
 
 export const DEFAULT_SELECTIONS: Record<string, string> = {
   // Scene bay
+  scenes: 'list',
   theme: 'system',
-  lighting: 'studio',
   environment: 'void',
   objects: 'all',
   camera: 'orbit',
