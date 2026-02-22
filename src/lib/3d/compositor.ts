@@ -10,6 +10,29 @@ import type { AnimationDSL } from './animation-dsl';
 import { resolvePrefab, type PrefabRegistry } from './prefabs';
 
 /**
+ * Normalize an RGB tuple to 0-1 range. If any component exceeds 1,
+ * assumes the tuple is in 0-255 range and divides by 255.
+ * This guards against DSL data using either convention.
+ */
+function normalizeColor(c: [number, number, number]): [number, number, number] {
+  if (c[0] > 1 || c[1] > 1 || c[2] > 1) {
+    return [c[0] / 255, c[1] / 255, c[2] / 255];
+  }
+  return c;
+}
+
+/**
+ * Normalize all color fields in a material object to 0-1 range.
+ */
+function normalizeMaterialColors(mat: Partial<MaterialSpec>): Partial<MaterialSpec> {
+  const result: Partial<MaterialSpec> = { ...mat };
+  if (result.diffuse) result.diffuse = normalizeColor(result.diffuse);
+  if (result.emissive) result.emissive = normalizeColor(result.emissive);
+  if (result.specular) result.specular = normalizeColor(result.specular);
+  return result;
+}
+
+/**
  * Mapping from a serializable entity + its layer ID to the theme overrides
  * it declares. Used internally to build the composite onThemeChange callback.
  */
@@ -27,25 +50,26 @@ function applyMaterialOverrides(
   mat: pc.StandardMaterial,
   overrides: Partial<MaterialSpec>,
 ): void {
-  if (overrides.diffuse) {
+  const norm = normalizeMaterialColors(overrides);
+  if (norm.diffuse) {
     (mat.diffuse as any).set(
-      overrides.diffuse[0],
-      overrides.diffuse[1],
-      overrides.diffuse[2],
+      norm.diffuse[0],
+      norm.diffuse[1],
+      norm.diffuse[2],
     );
   }
-  if (overrides.emissive) {
+  if (norm.emissive) {
     (mat.emissive as any).set(
-      overrides.emissive[0],
-      overrides.emissive[1],
-      overrides.emissive[2],
+      norm.emissive[0],
+      norm.emissive[1],
+      norm.emissive[2],
     );
   }
-  if (overrides.specular) {
+  if (norm.specular) {
     (mat.specular as any).set(
-      overrides.specular[0],
-      overrides.specular[1],
-      overrides.specular[2],
+      norm.specular[0],
+      norm.specular[1],
+      norm.specular[2],
     );
   }
   if (overrides.metalness !== undefined) {
@@ -145,7 +169,9 @@ function toSceneEntity(
     id: namespacedId,
     // mesh and material are set below
     mesh: 'sphere', // default, overridden below
-    material: (material ?? { diffuse: [0.8, 0.8, 0.8] }) as SceneContentMaterialSpec,
+    material: normalizeMaterialColors(
+      material ?? { diffuse: [0.8, 0.8, 0.8] },
+    ) as SceneContentMaterialSpec,
   };
 
   // Set mesh from components.render for backward compat with createScene

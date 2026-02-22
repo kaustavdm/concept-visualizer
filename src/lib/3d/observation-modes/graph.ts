@@ -4,17 +4,38 @@ import type { VisualizationSchema } from '$lib/types';
 import type { EntitySpec, Layer3d } from '../entity-spec';
 import { v4 as uuid } from 'uuid';
 
-// Color palette for concept themes
-const THEME_COLORS: Record<string, [number, number, number]> = {
-	core: [80, 140, 255],
-	support: [120, 200, 120],
-	context: [200, 160, 80],
-	outcome: [200, 80, 120],
-	default: [150, 150, 180],
+// Color palette indexed by narrativeRole and a rotating set for themes
+// All colors in 0-1 range (PlayCanvas pc.Color convention)
+const ROLE_COLORS: Record<string, [number, number, number]> = {
+	central: [0.31, 0.55, 1.0],
+	supporting: [0.47, 0.78, 0.47],
+	contextual: [0.78, 0.63, 0.31],
+	outcome: [0.78, 0.31, 0.63],
 };
 
-function getThemeColor(theme?: string): [number, number, number] {
-	return THEME_COLORS[theme ?? 'default'] ?? THEME_COLORS.default;
+// Distinctive palette for differentiating nodes when theme/role aren't useful
+const PALETTE: [number, number, number][] = [
+	[0.31, 0.55, 1.0],   // blue
+	[0.9, 0.39, 0.24],   // orange
+	[0.47, 0.78, 0.47],  // green
+	[0.78, 0.31, 0.63],  // magenta
+	[1.0, 0.78, 0.24],   // yellow
+	[0.39, 0.82, 0.82],  // teal
+	[0.71, 0.47, 1.0],   // purple
+	[1.0, 0.55, 0.55],   // salmon
+];
+
+function getNodeColor(
+	narrativeRole?: string,
+	theme?: string,
+	index: number = 0,
+): [number, number, number] {
+	// 1. Use narrativeRole if it's a known value
+	if (narrativeRole && ROLE_COLORS[narrativeRole]) {
+		return ROLE_COLORS[narrativeRole];
+	}
+	// 2. Fall back to a rotating palette based on node index
+	return PALETTE[index % PALETTE.length];
 }
 
 function makeLayer(partial: Partial<Layer3d> & { name: string; entities: EntitySpec[] }): Layer3d {
@@ -59,18 +80,18 @@ export const graphMode: ObservationMode = {
 			position: [0, 0, 0],
 			scale: [radius * 3, 1, radius * 3],
 			material: {
-				diffuse: options?.theme === 'dark' ? [30, 30, 40] : [220, 225, 230],
+				diffuse: options?.theme === 'dark' ? [0.12, 0.12, 0.16] : [0.86, 0.88, 0.9],
 				opacity: 0.5,
 				blendType: 'normal',
 			},
 		}];
 
-		// Concepts layer — one sphere per node
-		const conceptEntities: EntitySpec[] = nodes.map(node => {
+		// Concepts layer — one sphere per node with differentiated colors
+		const conceptEntities: EntitySpec[] = nodes.map((node, i) => {
 			const pos = nodePositions.get(node.id) ?? [0, 1, 0];
 			const weight = node.weight ?? 0.5;
 			const s = 0.5 + weight * 1.5;
-			const color = getThemeColor(node.theme);
+			const color = getNodeColor(node.narrativeRole, node.theme, i);
 
 			return {
 				id: node.id,
@@ -109,7 +130,7 @@ export const graphMode: ObservationMode = {
 				position: [midX, midY, midZ] as [number, number, number],
 				scale: [thickness, thickness, length] as [number, number, number],
 				material: {
-					diffuse: [100, 100, 120] as [number, number, number],
+					diffuse: [0.39, 0.39, 0.47] as [number, number, number],
 					opacity: 0.3 + strength * 0.4,
 					blendType: 'normal' as const,
 				},
