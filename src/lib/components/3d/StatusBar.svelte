@@ -1,37 +1,75 @@
 <script lang="ts">
   import type { CameraMode } from '$lib/3d/createScene';
+  import { fpsToColor } from '$lib/3d/fps-color';
+
+  interface StatusBarConfig {
+    fps: boolean;
+    mode: boolean;
+    movement: boolean;
+    filename: boolean;
+    bar: boolean;
+  }
 
   interface Props {
     mode: 'command' | 'input';
     cameraMode: CameraMode;
     voiceRecording: boolean;
     activeFileName: string | null;
+    fps?: number;
+    config?: StatusBarConfig;
   }
 
-  let { mode, cameraMode, voiceRecording, activeFileName }: Props = $props();
+  let {
+    mode,
+    cameraMode,
+    voiceRecording,
+    activeFileName,
+    fps = 0,
+    config = { fps: false, mode: true, movement: true, filename: true, bar: true },
+  }: Props = $props();
+
+  let fpsStyle = $derived.by(() => {
+    const { color, glow } = fpsToColor(fps);
+    return {
+      color,
+      textShadow: glow ? `0 0 6px ${color}` : 'none',
+    };
+  });
 </script>
 
+{#if config.bar}
 <div class="status-bar">
   <div class="status-left">
-    <span
-      class="mode-badge"
-      class:mode-command={mode === 'command'}
-      class:mode-input={mode === 'input'}
-    >
-      {mode === 'command' ? 'COMMAND' : 'INPUT'}
-    </span>
-    <span class="camera-label">{cameraMode.toUpperCase()}</span>
+    {#if config.mode}
+      <span
+        class="mode-badge"
+        class:mode-command={mode === 'command'}
+        class:mode-input={mode === 'input'}
+      >
+        {mode === 'command' ? 'COMMAND' : 'INPUT'}
+      </span>
+    {/if}
+    {#if config.movement}
+      <span class="camera-label">{cameraMode.toUpperCase()}</span>
+    {/if}
+    {#if config.fps}
+      <span
+        class="fps-label"
+        style="color: {fpsStyle.color}; text-shadow: {fpsStyle.textShadow};"
+      >FPS: {fps}</span>
+    {/if}
   </div>
 
   <div class="status-right">
     {#if voiceRecording}
       <span class="mic-indicator">MIC</span>
     {/if}
-    {#if activeFileName}
+    {#if config.filename && activeFileName}
       <span class="file-name">{activeFileName}</span>
     {/if}
   </div>
 </div>
+{/if}
 
 <style>
   .status-bar {
@@ -107,5 +145,13 @@
     overflow: hidden;
     text-overflow: ellipsis;
     max-width: 200px;
+  }
+
+  .fps-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    transition: color 0.3s;
   }
 </style>
