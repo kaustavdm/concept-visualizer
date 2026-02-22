@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { pushState } from '$app/navigation';
+  import { page } from '$app/stores';
   import { settingsStore } from '$lib/stores/settings';
   import type { SceneController, CameraMode } from '$lib/3d/createScene';
   import { files3dStore } from '$lib/stores/files3d';
@@ -8,6 +10,8 @@
   import MovementDial from '$lib/components/3d/MovementDial.svelte';
   import HexagonDial from '$lib/components/3d/HexagonDial.svelte';
   import KeyboardHelp from '$lib/components/3d/KeyboardHelp.svelte';
+  import SettingsModal from '$lib/components/3d/SettingsModal.svelte';
+  import OnboardingModal from '$lib/components/3d/OnboardingModal.svelte';
   import LayersPanel from '$lib/components/3d/LayersPanel.svelte';
   import FileBrowserHex from '$lib/components/3d/FileBrowserHex.svelte';
   import FileListModal from '$lib/components/3d/FileListModal.svelte';
@@ -35,13 +39,26 @@
   let dialActivateOption: number | null = $state(null);
   let dialDismiss = $state(false);
   let keyActiveActions = $state(new Set<string>());
-  let helpVisible = $state(false);
   let fileListVisible = $state(false);
   let layersPanelVisible = $state(true);
   let storeFiles: Scene3d[] = $state([]);
   let storeActiveFileId: string | null = $state(null);
   let activeLayers: Layer3d[] = $state([]);
   let inputMode = $state(false);
+  let currentFps = $state(0);
+  let statusBarConfig = $state({
+    fps: false,
+    mode: true,
+    movement: true,
+    filename: true,
+    bar: true,
+  });
+  let showOnboarding = $state(false);
+
+  // Modal state derived from shallow routing
+  let activeModal = $derived(($page as any).state?.modal as string | undefined);
+  let helpVisible = $derived(activeModal === 'help');
+  let settingsVisible = $derived(activeModal === 'settings');
 
   // Observation mode registry
   const modeRegistry = createObservationModeRegistry();
@@ -60,6 +77,19 @@
     scene?.setTheme(resolved);
     document.documentElement.setAttribute('data-theme', resolved);
     settingsStore.update({ theme: resolved });
+  }
+
+  // Modal navigation helpers
+  function openHelp() {
+    pushState('/help', { modal: 'help' });
+  }
+
+  function openSettings() {
+    pushState('/settings', { modal: 'settings' });
+  }
+
+  function closeModal() {
+    history.back();
   }
 
   // Multi-bay state
@@ -92,6 +122,7 @@
 
       function tick() {
         compassAngle = s.getCompassAngle();
+        currentFps = s.getFps();
         raf = requestAnimationFrame(tick);
       }
       raf = requestAnimationFrame(tick);
@@ -124,7 +155,15 @@
     mql.addEventListener('change', onSystemChange);
 
     // Sync from settings store — only update if not in system mode
+    let hasCheckedOnboarding = false;
     const unsub = settingsStore.subscribe((settings) => {
+      // Check for first-time setup on first subscription fire
+      if (!hasCheckedOnboarding) {
+        hasCheckedOnboarding = true;
+        if (settings.llmEndpoint === 'http://localhost:11434/v1' && settings.llmModel === 'llama3.2') {
+          showOnboarding = true;
+        }
+      }
       if (themeMode !== 'system') {
         theme = settings.theme;
         scene?.setTheme(settings.theme);
@@ -272,9 +311,9 @@
     if (e.repeat) return;
 
     // Route through input mode controller
-    const route = routeKeyDown(e.key, { inputMode, helpVisible, fileListVisible });
+    const route = routeKeyDown(e.key, { inputMode, helpVisible: helpVisible || settingsVisible, fileListVisible });
     switch (route.action) {
-      case 'close_help': helpVisible = false; return;
+      case 'close_help': if (helpVisible || settingsVisible) closeModal(); return;
       case 'close_file_list': fileListVisible = false; return;
       case 'exit_input_mode': inputMode = false; return;
       case 'enter_input_mode': inputMode = true; return;
@@ -286,7 +325,8 @@
 
     // '?' toggles help overlay (Shift+/ on US layout)
     if (e.key === '?') {
-      helpVisible = !helpVisible;
+      if (helpVisible) closeModal();
+      else openHelp();
       return;
     }
 
@@ -378,7 +418,7 @@
   }
 
   function handleKeyUp(e: KeyboardEvent) {
-    if (!shouldProcessKeyUp({ inputMode, helpVisible, fileListVisible })) return;
+    if (!shouldProcessKeyUp({ inputMode, helpVisible: helpVisible || settingsVisible, fileListVisible })) return;
 
     if (e.key === 'Shift') {
       shiftHeld = false;
@@ -425,6 +465,15 @@
   function handleDialSelect(faceId: string, optionId: string) {
     dialSelections = { ...dialSelections, [faceId]: optionId };
 
+    // Status face: toggle individual status bar elements
+    if (faceId === 'status') {
+      const key = optionId as keyof typeof statusBarConfig;
+      if (key in statusBarConfig) {
+        statusBarConfig = { ...statusBarConfig, [key]: !statusBarConfig[key] };
+      }
+      return;
+    }
+
     // Scenes face: actions (not a persistent selection)
     if (faceId === 'scenes') {
       if (optionId === 'new') handleCreateFile();
@@ -451,6 +500,8 @@
   function handleDialToggle(faceId: string) {
     if (faceId === 'theme') {
       toggleTheme();
+    } else if (faceId === 'settings') {
+      openSettings();
     }
     // App bay toggles (pipeline, refinement) are dummy for now
   }
@@ -532,7 +583,7 @@
   <!-- Help button: top-right hexagonal "?" -->
   <button
     class="help-hex"
-    onclick={() => { helpVisible = !helpVisible; }}
+    onclick={() => { if (helpVisible) closeModal(); else openHelp(); }}
     aria-label="Toggle keyboard shortcuts help"
     title="Keyboard shortcuts (?)"
   >
@@ -559,8 +610,17 @@
     <KeyboardHelp
       bays={dialBays}
       {activeBayIndex}
-      onClose={() => { helpVisible = false; }}
+      onClose={closeModal}
+      onRunSetup={() => { closeModal(); setTimeout(() => { showOnboarding = true; }, 100); }}
     />
+  {/if}
+
+  {#if settingsVisible}
+    <SettingsModal onClose={closeModal} />
+  {/if}
+
+  {#if showOnboarding}
+    <OnboardingModal onClose={() => { showOnboarding = false; }} />
   {/if}
 
   {#if fileListVisible}
@@ -607,6 +667,8 @@
     {cameraMode}
     voiceRecording={false}
     {activeFileName}
+    fps={currentFps}
+    config={statusBarConfig}
   />
 </div>
 
