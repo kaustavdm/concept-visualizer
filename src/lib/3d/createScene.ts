@@ -44,6 +44,23 @@ const ENV_THEMES: Record<string, EnvTheme> = {
 
 // --- Material helpers ---
 
+const BLEND_MAP: Record<string, number> = {
+  normal: pc.BLEND_NORMAL,
+  additive: pc.BLEND_ADDITIVE,
+  none: pc.BLEND_NONE,
+};
+
+/** Known MaterialSpec keys handled explicitly — everything else is passed through */
+const KNOWN_MAT_KEYS = new Set([
+  'diffuse',
+  'emissive',
+  'specular',
+  'metalness',
+  'gloss',
+  'opacity',
+  'blendType',
+]);
+
 function buildMaterial(spec: MaterialSpec): pc.StandardMaterial {
   const mat = new pc.StandardMaterial();
   mat.diffuse = new pc.Color(spec.diffuse[0], spec.diffuse[1], spec.diffuse[2]);
@@ -60,6 +77,22 @@ function buildMaterial(spec: MaterialSpec): pc.StandardMaterial {
   if (spec.gloss !== undefined) {
     mat.gloss = spec.gloss;
   }
+  if (spec.opacity !== undefined) {
+    mat.opacity = spec.opacity;
+    mat.blendType = spec.blendType
+      ? (BLEND_MAP[spec.blendType] ?? pc.BLEND_NORMAL)
+      : pc.BLEND_NORMAL;
+  } else if (spec.blendType) {
+    mat.blendType = BLEND_MAP[spec.blendType] ?? pc.BLEND_NONE;
+  }
+
+  // Index-signature passthrough: apply any unknown properties directly
+  for (const key of Object.keys(spec)) {
+    if (!KNOWN_MAT_KEYS.has(key)) {
+      (mat as any)[key] = spec[key as keyof MaterialSpec];
+    }
+  }
+
   mat.update();
   return mat;
 }
@@ -158,6 +191,24 @@ function buildEntity(
     });
   }
 
+  // Light component support
+  if (spec.components?.light) {
+    entity.addComponent('light', {
+      type: spec.components.light.type,
+      color: spec.components.light.color ? new pc.Color(
+        (spec.components.light.color as [number, number, number])[0] / 255,
+        (spec.components.light.color as [number, number, number])[1] / 255,
+        (spec.components.light.color as [number, number, number])[2] / 255,
+      ) : undefined,
+      intensity: spec.components.light.intensity,
+      range: spec.components.light.range,
+      castShadows: spec.components.light.castShadows,
+      shadowResolution: spec.components.light.shadowResolution,
+      innerConeAngle: spec.components.light.innerConeAngle,
+      outerConeAngle: spec.components.light.outerConeAngle,
+    });
+  }
+
   if (spec.position) entity.setPosition(...spec.position);
   if (spec.rotation) entity.setLocalEulerAngles(...spec.rotation);
   if (spec.scale) entity.setLocalScale(...spec.scale);
@@ -222,11 +273,27 @@ export function createScene(
   function loadContent(content: SceneContent) {
     unloadContent();
     activeContent = content;
+
+    // First pass: create all entities and add to root
     for (const spec of content.entities) {
       const entity = buildEntity(app, spec);
       activeEntities[spec.id] = entity;
       app.root.addChild(entity);
     }
+
+    // Second pass: wire parent-child hierarchy
+    for (const spec of content.entities) {
+      if (spec.parent) {
+        const child = activeEntities[spec.id];
+        const parent = activeEntities[spec.parent];
+        if (child && parent) {
+          // Remove from root and re-parent under the parent entity
+          app.root.removeChild(child);
+          parent.addChild(child);
+        }
+      }
+    }
+
     followableIds = content.entities
       .filter((s) => s.followable)
       .map((s) => s.id);
@@ -447,9 +514,8 @@ export function createScene(
 
     camera.setPosition(cx, cy, cz);
     if (!slerping) {
-      const sphereEntity = activeEntities['sphere'];
-      const bobY = sphereEntity ? sphereEntity.getPosition().y * 0.5 : 0;
-      camera.lookAt(new pc.Vec3(0, bobY, 0));
+      const lookAtTarget = pc.Vec3.ZERO;
+      camera.lookAt(lookAtTarget);
     }
   }
 
