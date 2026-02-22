@@ -1,5 +1,5 @@
 import type { SceneContent } from '../scene-content.types';
-import type { Layer3d, SerializableEntitySpec } from '../types';
+import type { EntitySpec, Layer3d } from '../entity-spec';
 import type { AnimationDSL } from '../animation-dsl';
 import { composeLayers } from '../compositor';
 
@@ -30,30 +30,34 @@ const MOON_ORBIT_SPEED = 0.6; // radians/sec
 /** Pyramid position — center of the blue sphere's orbit */
 const PYRAMID_POS: [number, number, number] = [0, 0, 0];
 
-// --- Layer: ground (order 0) — grid floor ---
+// --- Layer: ground (position 'a') — grid floor ---
 
-const floorEntity: SerializableEntitySpec = {
+const floorEntity: EntitySpec = {
   id: 'floor',
-  mesh: 'plane',
+  components: { render: { type: 'plane' } },
   material: {
     diffuse: [0.5, 0.5, 0.55],
   },
   position: [0, -1, 0],
   scale: [80, 1, 80],
-  opacity: { map: 'grid', tiling: 4, blend: true },
 };
 
-// --- Layer: structures (order 1) — static pyramid ---
+// --- Layer: structures (position 'n') — static pyramid ---
 
-const pyramidEntity: SerializableEntitySpec = {
+const pyramidEntity: EntitySpec = {
   id: 'pyramid',
-  mesh: {
-    type: 'cone',
-    capSegments: 4,
-    baseRadius: 1,
-    peakRadius: 0,
-    height: 2,
-    heightSegments: 1,
+  components: {
+    render: {
+      type: 'cone',
+      geometry: {
+        type: 'cone',
+        capSegments: 4,
+        baseRadius: 1,
+        peakRadius: 0,
+        height: 2,
+        heightSegments: 1,
+      },
+    },
   },
   material: {
     diffuse: [0.76, 0.7, 0.5],
@@ -66,7 +70,7 @@ const pyramidEntity: SerializableEntitySpec = {
   rotation: [0, 45, 0],
 };
 
-// --- Layer: orbiting (order 2) — sphere + moon ---
+// --- Layer: orbiting (position 'z') — sphere + moon ---
 
 /**
  * Sphere animation: orbits origin at radius 8, speed 0.3 rad/s,
@@ -87,9 +91,9 @@ const sphereAnimation: AnimationDSL = [
   { type: 'rotate', axis: 'y', speed: 12 / 360 },
 ];
 
-const sphereEntity: SerializableEntitySpec = {
+const sphereEntity: EntitySpec = {
   id: 'sphere',
-  mesh: 'sphere',
+  components: { render: { type: 'sphere' } },
   material: {
     diffuse: SPHERE_THEMES.light.diffuse,
     emissive: SPHERE_THEMES.light.emissive,
@@ -132,9 +136,9 @@ const moonAnimation: AnimationDSL = {
   tilt: MOON_ORBIT_TILT,
 };
 
-const moonEntity: SerializableEntitySpec = {
+const moonEntity: EntitySpec = {
   id: 'moon',
-  mesh: 'sphere',
+  components: { render: { type: 'sphere' } },
   material: {
     diffuse: [0.75, 0.75, 0.78],
     emissive: [0.04, 0.04, 0.05],
@@ -149,7 +153,7 @@ const moonEntity: SerializableEntitySpec = {
 
 // --- Compose layers ---
 
-const now = new Date();
+const now = new Date().toISOString();
 
 export const solarLayers: Layer3d[] = [
   {
@@ -158,7 +162,8 @@ export const solarLayers: Layer3d[] = [
     visible: true,
     text: '',
     entities: [floorEntity],
-    order: 0,
+    position: 'a',
+    source: { type: 'manual' },
     createdAt: now,
     updatedAt: now,
   },
@@ -168,7 +173,8 @@ export const solarLayers: Layer3d[] = [
     visible: true,
     text: '',
     entities: [pyramidEntity],
-    order: 1,
+    position: 'n',
+    source: { type: 'manual' },
     createdAt: now,
     updatedAt: now,
   },
@@ -178,7 +184,8 @@ export const solarLayers: Layer3d[] = [
     visible: true,
     text: '',
     entities: [sphereEntity, moonEntity],
-    order: 2,
+    position: 'z',
+    source: { type: 'manual' },
     createdAt: now,
     updatedAt: now,
   },

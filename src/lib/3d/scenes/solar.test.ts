@@ -1,7 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
 import { solarLayers, solarScene } from './solar';
 import { composeLayers } from '../compositor';
-import type { Layer3d } from '../types';
+import type { Layer3d } from '../entity-spec';
 
 describe('solarLayers', () => {
   it('exports an array of Layer3d', () => {
@@ -15,7 +15,7 @@ describe('solarLayers', () => {
       expect(layer).toHaveProperty('name');
       expect(typeof layer.visible).toBe('boolean');
       expect(Array.isArray(layer.entities)).toBe(true);
-      expect(typeof layer.order).toBe('number');
+      expect(typeof layer.position).toBe('string');
     }
   });
 
