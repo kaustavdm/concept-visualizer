@@ -5,9 +5,10 @@
 
   interface Props {
     onClose: () => void;
+    onComplete: (scene: 'default' | 'empty') => void;
   }
 
-  let { onClose }: Props = $props();
+  let { onClose, onComplete }: Props = $props();
 
   let endpoint = $state('');
   let model = $state('');
@@ -21,13 +22,13 @@
     return unsub;
   });
 
-  async function handleGetStarted(): Promise<void> {
+  async function handleStart(scene: 'default' | 'empty'): Promise<void> {
     await settingsStore.update({
       llmEndpoint: endpoint,
       llmModel: model,
       onboardingCompleted: true,
     });
-    onClose();
+    onComplete(scene);
   }
 </script>
 
@@ -39,7 +40,7 @@
       LLM endpoint below to get started.
     </p>
 
-    <form onsubmit={(e) => { e.preventDefault(); handleGetStarted(); }} class="onboarding-form">
+    <form onsubmit={(e) => { e.preventDefault(); handleStart('default'); }} class="onboarding-form">
       <div class="field">
         <label for="onboard-endpoint" class="field-label">LLM Endpoint</label>
         <input
@@ -63,7 +64,13 @@
         />
       </div>
 
-      <button type="submit" class="btn-start">Get Started</button>
+      <div class="scene-choice">
+        <p class="field-label">Start with</p>
+        <div class="scene-buttons">
+          <button type="submit" class="btn-start">Terran System</button>
+          <button type="button" class="btn-start btn-secondary" onclick={() => handleStart('empty')}>Empty Scene</button>
+        </div>
+      </div>
     </form>
   </div>
 </GlassModal>
@@ -125,6 +132,17 @@
     margin: 0;
   }
 
+  .scene-choice {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .scene-buttons {
+    display: flex;
+    gap: 8px;
+  }
+
   .btn-start {
     padding: 8px 20px;
     font-size: 13px;
@@ -136,10 +154,20 @@
     color: white;
     cursor: pointer;
     transition: opacity 0.15s;
-    align-self: flex-start;
   }
 
   .btn-start:hover {
     opacity: 0.9;
+  }
+
+  .btn-secondary {
+    background: transparent;
+    color: var(--text-secondary);
+    border: 1px solid var(--glass-border);
+  }
+
+  .btn-secondary:hover {
+    background: var(--pad-btn-bg);
+    opacity: 1;
   }
 </style>

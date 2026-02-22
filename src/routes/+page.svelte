@@ -638,7 +638,15 @@
   {/if}
 
   {#if showOnboarding}
-    <OnboardingModal onClose={() => { showOnboarding = false; }} />
+    <OnboardingModal
+      onClose={() => { showOnboarding = false; }}
+      onComplete={async (scene) => {
+        showOnboarding = false;
+        if (scene === 'empty') {
+          await files3dStore.create('Untitled Scene');
+        }
+      }}
+    />
   {/if}
 
   {#if fileListVisible}
