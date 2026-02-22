@@ -27,6 +27,8 @@ export interface SceneEntitySpec {
     | 'plane'
     | 'cone'
     | 'cylinder'
+    | 'torus'
+    | 'capsule'
     | {
         type: 'cone';
         capSegments: number;

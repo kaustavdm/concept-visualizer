@@ -1,9 +1,9 @@
 import type * as pc from 'playcanvas';
-import type { EntitySpec, Layer3d } from './entity-spec';
+import type { EntitySpec, Layer3d, MaterialSpec } from './entity-spec';
 import type {
   SceneContent,
   SceneEntitySpec,
-  MaterialSpec,
+  MaterialSpec as SceneContentMaterialSpec,
 } from './scene-content.types';
 import { resolveAnimation } from './animation-dsl';
 import type { AnimationDSL } from './animation-dsl';
@@ -145,7 +145,7 @@ function toSceneEntity(
     id: namespacedId,
     // mesh and material are set below
     mesh: 'sphere', // default, overridden below
-    material: material ?? { diffuse: [0.8, 0.8, 0.8] },
+    material: (material ?? { diffuse: [0.8, 0.8, 0.8] }) as SceneContentMaterialSpec,
   };
 
   // Set mesh from components.render for backward compat with createScene
