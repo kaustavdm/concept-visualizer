@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { EntitySpec, Layer3d } from '$lib/3d/entity-spec';
+  import { validateEntitySpecs } from '$lib/3d/entity-validation';
   import VoiceInput from './VoiceInput.svelte';
 
   interface Props {
@@ -10,6 +11,7 @@
     onAddLayer: () => void;
     onRemoveLayer: (layerId: string) => void;
     onGenerate?: (layerId: string, text: string) => void;
+    generateLoading?: boolean;
     observationModes?: string[];
     activeObservationMode?: string;
     onSelectObservationMode?: (mode: string) => void;
@@ -23,6 +25,7 @@
     onAddLayer,
     onRemoveLayer,
     onGenerate,
+    generateLoading = false,
     observationModes,
     activeObservationMode,
     onSelectObservationMode,
@@ -33,12 +36,27 @@
   let jsonErrors: Record<string, string> = $state({});
   let hoveredLayerId: string | null = $state(null);
 
+  // JSON edit buffer: decouples textarea from store during active editing
+  let editingJsonLayerId: string | null = $state(null);
+  let jsonEditBuffer: string = $state('');
+  let jsonEditDirty: boolean = $state(false);
+
+  // Tab state for expanded layer detail
+  type DetailTab = 'description' | 'properties' | 'json';
+  let activeDetailTab: Record<string, DetailTab> = $state({});
+
   let sortedLayers = $derived(
     [...layers].sort((a, b) => a.position.localeCompare(b.position))
   );
 
   function toggleExpand(layerId: string) {
-    expandedLayerId = expandedLayerId === layerId ? null : layerId;
+    if (expandedLayerId === layerId) {
+      // Collapsing — clear any active JSON edit
+      if (editingJsonLayerId === layerId) clearJsonEdit();
+      expandedLayerId = null;
+    } else {
+      expandedLayerId = layerId;
+    }
   }
 
   function handleTextInput(layerId: string, event: Event) {
@@ -54,23 +72,101 @@
     }
   }
 
-  function handleJsonInput(layerId: string, event: Event) {
+  // --- JSON edit buffer methods ---
+
+  function startJsonEdit(layerId: string, entities: EntitySpec[]) {
+    editingJsonLayerId = layerId;
+    jsonEditBuffer = JSON.stringify(entities, null, 2);
+    jsonEditDirty = false;
+    // Clear any prior error for this layer
+    const { [layerId]: _, ...rest } = jsonErrors;
+    jsonErrors = rest;
+  }
+
+  function handleJsonBufferInput(layerId: string, event: Event) {
     const target = event.target as HTMLTextAreaElement;
-    const value = target.value;
+    jsonEditBuffer = target.value;
+    jsonEditDirty = true;
+
+    // Validate as user types (show errors) but do NOT commit to store
     try {
-      const parsed = JSON.parse(value) as EntitySpec[];
+      const parsed = JSON.parse(target.value);
       if (!Array.isArray(parsed)) {
         jsonErrors = { ...jsonErrors, [layerId]: 'Must be an array' };
         return;
       }
+      const validationError = validateEntitySpecs(parsed);
+      if (validationError) {
+        jsonErrors = { ...jsonErrors, [layerId]: validationError };
+        return;
+      }
       const { [layerId]: _, ...rest } = jsonErrors;
       jsonErrors = rest;
-      onUpdateEntities(layerId, parsed);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Invalid JSON';
       jsonErrors = { ...jsonErrors, [layerId]: msg };
     }
   }
+
+  function commitJsonEdit(layerId: string) {
+    if (!jsonEditDirty) {
+      clearJsonEdit();
+      return;
+    }
+    try {
+      const parsed = JSON.parse(jsonEditBuffer);
+      if (!Array.isArray(parsed)) {
+        jsonErrors = { ...jsonErrors, [layerId]: 'Must be an array' };
+        return;
+      }
+      const validationError = validateEntitySpecs(parsed);
+      if (validationError) {
+        jsonErrors = { ...jsonErrors, [layerId]: validationError };
+        return;
+      }
+      const { [layerId]: _, ...rest } = jsonErrors;
+      jsonErrors = rest;
+      onUpdateEntities(layerId, parsed as EntitySpec[]);
+      clearJsonEdit();
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Invalid JSON';
+      jsonErrors = { ...jsonErrors, [layerId]: msg };
+    }
+  }
+
+  function revertJsonEdit(layerId: string) {
+    const layer = layers.find(l => l.id === layerId);
+    if (layer) {
+      jsonEditBuffer = JSON.stringify(layer.entities, null, 2);
+    }
+    jsonEditDirty = false;
+    const { [layerId]: _, ...rest } = jsonErrors;
+    jsonErrors = rest;
+  }
+
+  function clearJsonEdit() {
+    editingJsonLayerId = null;
+    jsonEditBuffer = '';
+    jsonEditDirty = false;
+  }
+
+  function handleJsonKeydown(layerId: string, event: KeyboardEvent) {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      revertJsonEdit(layerId);
+      clearJsonEdit();
+    } else if (event.key === 'Enter' && (event.ctrlKey || event.metaKey)) {
+      event.preventDefault();
+      commitJsonEdit(layerId);
+    }
+  }
+
+  function getJsonValue(layerId: string, entities: EntitySpec[]): string {
+    if (editingJsonLayerId === layerId) return jsonEditBuffer;
+    return JSON.stringify(entities, null, 2);
+  }
+
+  // --- End JSON edit buffer ---
 
   function handleGenerate(layerId: string, text: string) {
     onGenerate?.(layerId, text);
@@ -256,34 +352,45 @@
               />
             </div>
 
-            <!-- JSON editor -->
+            <!-- Generate button -->
+            {#if onGenerate}
+              <button
+                class="generate-btn"
+                onclick={() => handleGenerate(layer.id, layer.text)}
+                disabled={!layer.text.trim() || generateLoading}
+                aria-label="Generate entities from description"
+              >
+                {#if generateLoading}
+                  Generating...
+                {:else}
+                  Generate
+                {/if}
+              </button>
+            {/if}
+
+            <!-- JSON editor (always shown until tabs are implemented) -->
             <label class="detail-label" for="layer-json-{layer.id}">
               Entities (JSON)
+              {#if editingJsonLayerId === layer.id && jsonEditDirty}
+                <span class="json-dirty-hint">Ctrl+Enter to save, Esc to revert</span>
+              {/if}
             </label>
             <textarea
               id="layer-json-{layer.id}"
               class="json-area"
+              class:json-dirty={editingJsonLayerId === layer.id && jsonEditDirty}
               rows="6"
-              value={JSON.stringify(layer.entities, null, 2)}
-              oninput={(e) => handleJsonInput(layer.id, e)}
+              value={getJsonValue(layer.id, layer.entities)}
+              onfocus={() => startJsonEdit(layer.id, layer.entities)}
+              oninput={(e) => handleJsonBufferInput(layer.id, e)}
+              onblur={() => commitJsonEdit(layer.id)}
+              onkeydown={(e) => handleJsonKeydown(layer.id, e)}
               spellcheck="false"
             ></textarea>
             {#if jsonErrors[layer.id]}
               <div class="json-error" role="alert">
                 {jsonErrors[layer.id]}
               </div>
-            {/if}
-
-            <!-- Generate button -->
-            {#if onGenerate}
-              <button
-                class="generate-btn"
-                onclick={() => handleGenerate(layer.id, layer.text)}
-                disabled={!layer.text.trim()}
-                aria-label="Generate entities from description"
-              >
-                Generate
-              </button>
             {/if}
           </div>
         {/if}
@@ -416,7 +523,35 @@
   .layer-list {
     display: flex;
     flex-direction: column;
+    max-height: 280px;
     overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border) transparent;
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      black 0%,
+      black 90%,
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      black 0%,
+      black 90%,
+      transparent 100%
+    );
+  }
+
+  .layer-list::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .layer-list::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .layer-list::-webkit-scrollbar-thumb {
+    background: var(--glass-border);
+    border-radius: 2px;
   }
 
   .layer-item {
@@ -557,6 +692,10 @@
     flex-direction: column;
     gap: 6px;
     border-top: 1px solid var(--glass-border);
+    max-height: 300px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: var(--glass-border) transparent;
   }
 
   .detail-label {
@@ -616,6 +755,19 @@
 
   .json-area:focus {
     border-color: var(--accent);
+  }
+
+  .json-area.json-dirty {
+    border-left: 3px solid var(--accent);
+  }
+
+  .json-dirty-hint {
+    font-size: 9px;
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: normal;
+    color: var(--accent);
+    margin-left: 6px;
   }
 
   .json-error {
