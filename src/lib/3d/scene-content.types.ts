@@ -43,6 +43,11 @@ export interface SceneEntitySpec {
   animate?: (entity: pc.Entity, ctx: AnimationContext) => void;
   /** Whether the camera can follow this entity (only entities with motion) */
   followable?: boolean;
+  /** Per-entity theme-responsive material overrides (serializable alternative to scene-level onThemeChange) */
+  themeResponse?: {
+    light?: Partial<MaterialSpec>;
+    dark?: Partial<MaterialSpec>;
+  };
 }
 
 /** Complete scene content definition */
