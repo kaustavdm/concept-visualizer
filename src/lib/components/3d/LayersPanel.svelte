@@ -2,6 +2,7 @@
   import type { EntitySpec, Layer3d } from '$lib/3d/entity-spec';
   import { validateEntitySpecs } from '$lib/3d/entity-validation';
   import VoiceInput from './VoiceInput.svelte';
+  import EntityPropertyEditor from './EntityPropertyEditor.svelte';
 
   interface Props {
     layers: Layer3d[];
@@ -331,66 +332,96 @@
           <span class="entity-count">{entityCountLabel(layer.entities.length)}</span>
         </button>
 
-        <!-- Expanded detail panel -->
+        <!-- Expanded detail panel with tabs -->
         {#if isExpanded}
           <div class="layer-detail" id="layer-detail-{layer.id}">
-            <!-- Text description -->
-            <label class="detail-label" for="layer-text-{layer.id}">
-              Description
-            </label>
-            <div class="text-input-row">
-              <textarea
-                id="layer-text-{layer.id}"
-                class="text-area"
-                rows="3"
-                placeholder="Describe this layer..."
-                value={layer.text}
-                oninput={(e) => handleTextInput(layer.id, e)}
-              ></textarea>
-              <VoiceInput
-                onTranscript={(text) => handleVoiceTranscript(layer.id, text)}
-              />
+            <!-- Tab bar -->
+            <div class="tab-bar" role="tablist">
+              <button
+                class="tab-btn"
+                class:tab-active={(activeDetailTab[layer.id] ?? 'description') === 'description'}
+                role="tab"
+                aria-selected={(activeDetailTab[layer.id] ?? 'description') === 'description'}
+                onclick={() => { activeDetailTab = { ...activeDetailTab, [layer.id]: 'description' }; }}
+              >Description</button>
+              <button
+                class="tab-btn"
+                class:tab-active={activeDetailTab[layer.id] === 'properties'}
+                role="tab"
+                aria-selected={activeDetailTab[layer.id] === 'properties'}
+                onclick={() => { activeDetailTab = { ...activeDetailTab, [layer.id]: 'properties' }; }}
+              >Properties</button>
+              <button
+                class="tab-btn"
+                class:tab-active={activeDetailTab[layer.id] === 'json'}
+                role="tab"
+                aria-selected={activeDetailTab[layer.id] === 'json'}
+                onclick={() => { activeDetailTab = { ...activeDetailTab, [layer.id]: 'json' }; }}
+              >JSON</button>
             </div>
 
-            <!-- Generate button -->
-            {#if onGenerate}
-              <button
-                class="generate-btn"
-                onclick={() => handleGenerate(layer.id, layer.text)}
-                disabled={!layer.text.trim() || generateLoading}
-                aria-label="Generate entities from description"
-              >
-                {#if generateLoading}
-                  Generating...
-                {:else}
-                  Generate
-                {/if}
-              </button>
-            {/if}
-
-            <!-- JSON editor (always shown until tabs are implemented) -->
-            <label class="detail-label" for="layer-json-{layer.id}">
-              Entities (JSON)
-              {#if editingJsonLayerId === layer.id && jsonEditDirty}
-                <span class="json-dirty-hint">Ctrl+Enter to save, Esc to revert</span>
-              {/if}
-            </label>
-            <textarea
-              id="layer-json-{layer.id}"
-              class="json-area"
-              class:json-dirty={editingJsonLayerId === layer.id && jsonEditDirty}
-              rows="6"
-              value={getJsonValue(layer.id, layer.entities)}
-              onfocus={() => startJsonEdit(layer.id, layer.entities)}
-              oninput={(e) => handleJsonBufferInput(layer.id, e)}
-              onblur={() => commitJsonEdit(layer.id)}
-              onkeydown={(e) => handleJsonKeydown(layer.id, e)}
-              spellcheck="false"
-            ></textarea>
-            {#if jsonErrors[layer.id]}
-              <div class="json-error" role="alert">
-                {jsonErrors[layer.id]}
+            <!-- Description tab -->
+            {#if (activeDetailTab[layer.id] ?? 'description') === 'description'}
+              <div class="text-input-row">
+                <textarea
+                  id="layer-text-{layer.id}"
+                  class="text-area"
+                  rows="3"
+                  placeholder="Describe this layer..."
+                  value={layer.text}
+                  oninput={(e) => handleTextInput(layer.id, e)}
+                ></textarea>
+                <VoiceInput
+                  onTranscript={(text) => handleVoiceTranscript(layer.id, text)}
+                />
               </div>
+              {#if onGenerate}
+                <button
+                  class="generate-btn"
+                  onclick={() => handleGenerate(layer.id, layer.text)}
+                  disabled={!layer.text.trim() || generateLoading}
+                  aria-label="Generate entities from description"
+                >
+                  {#if generateLoading}
+                    Generating...
+                  {:else}
+                    Generate
+                  {/if}
+                </button>
+              {/if}
+
+            <!-- Properties tab -->
+            {:else if activeDetailTab[layer.id] === 'properties'}
+              <EntityPropertyEditor
+                entities={layer.entities}
+                onUpdate={(entities) => onUpdateEntities(layer.id, entities)}
+              />
+
+            <!-- JSON tab -->
+            {:else if activeDetailTab[layer.id] === 'json'}
+              <label class="detail-label" for="layer-json-{layer.id}">
+                Entities (JSON)
+                {#if editingJsonLayerId === layer.id && jsonEditDirty}
+                  <span class="json-dirty-hint">Ctrl+Enter to save, Esc to revert</span>
+                {/if}
+              </label>
+              <textarea
+                id="layer-json-{layer.id}"
+                class="json-area"
+                class:json-dirty={editingJsonLayerId === layer.id && jsonEditDirty}
+                rows="6"
+                value={getJsonValue(layer.id, layer.entities)}
+                onfocus={() => startJsonEdit(layer.id, layer.entities)}
+                oninput={(e) => handleJsonBufferInput(layer.id, e)}
+                onblur={() => commitJsonEdit(layer.id)}
+                onkeydown={(e) => handleJsonKeydown(layer.id, e)}
+                spellcheck="false"
+              ></textarea>
+              {#if jsonErrors[layer.id]}
+                <div class="json-error" role="alert">
+                  {jsonErrors[layer.id]}
+                </div>
+              {/if}
             {/if}
           </div>
         {/if}
@@ -696,6 +727,39 @@
     overflow-y: auto;
     scrollbar-width: thin;
     scrollbar-color: var(--glass-border) transparent;
+  }
+
+  .tab-bar {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 4px;
+  }
+
+  .tab-btn {
+    flex: 1;
+    font-family: var(--font-main);
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 4px 6px;
+    border: 1px solid var(--glass-border);
+    border-radius: 5px;
+    background: var(--pad-btn-bg);
+    color: var(--pad-icon-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .tab-btn:hover {
+    background: var(--pad-btn-bg-hover);
+    color: var(--pad-icon);
+  }
+
+  .tab-btn.tab-active {
+    background: color-mix(in srgb, var(--accent) 15%, transparent);
+    color: var(--accent);
+    border-color: var(--accent);
   }
 
   .detail-label {
