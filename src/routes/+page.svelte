@@ -407,8 +407,14 @@
     // HexagonDial face shortcuts — derived from active bay
     const face = dialKeyMap[e.key.toLowerCase()];
     if (face) {
+      const faceDef = dialBays[activeBayIndex].faces.find(f => f.id === face);
       dialActivateFace = face;
-      openFanFace = face;
+      // Faces with no fan-out options: trigger toggle directly
+      if (faceDef && faceDef.options.length === 0) {
+        handleDialToggle(face);
+      } else {
+        openFanFace = face;
+      }
       requestAnimationFrame(() => { dialActivateFace = null; });
       return;
     }
