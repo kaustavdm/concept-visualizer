@@ -135,8 +135,15 @@
     files3dStore.init().then(async () => {
       const state = get(files3dStore);
       if (state.files.length === 0) {
-        const file = await files3dStore.create('Terran System');
-        await files3dStore.updateLayers(file.id, structuredClone(solarLayers));
+        // First launch — show onboarding if not yet completed
+        const settings = get(settingsStore);
+        if (!settings.onboardingCompleted) {
+          showOnboarding = true;
+        } else {
+          // Onboarding completed previously but files were cleared — recreate default
+          const file = await files3dStore.create('Terran System');
+          await files3dStore.updateLayers(file.id, structuredClone(solarLayers));
+        }
       } else {
         // Migrate existing default scene: ensure floor entity has grid property
         // (was lost during DSL redesign, causes solid plane instead of grid mesh)
@@ -167,15 +174,7 @@
     mql.addEventListener('change', onSystemChange);
 
     // Sync from settings store — only update if not in system mode
-    let hasCheckedOnboarding = false;
     const unsub = settingsStore.subscribe((settings) => {
-      // Check for first-time setup on first subscription fire
-      if (!hasCheckedOnboarding) {
-        hasCheckedOnboarding = true;
-        if (!settings.onboardingCompleted) {
-          showOnboarding = true;
-        }
-      }
       if (themeMode !== 'system') {
         theme = settings.theme;
         scene?.setTheme(settings.theme);
@@ -640,9 +639,12 @@
   {#if showOnboarding}
     <OnboardingModal
       onClose={() => { showOnboarding = false; }}
-      onComplete={async (scene) => {
+      onComplete={async (choice) => {
         showOnboarding = false;
-        if (scene === 'empty') {
+        if (choice === 'default') {
+          const file = await files3dStore.create('Terran System');
+          await files3dStore.updateLayers(file.id, structuredClone(solarLayers));
+        } else {
           await files3dStore.create('Untitled Scene');
         }
       }}
