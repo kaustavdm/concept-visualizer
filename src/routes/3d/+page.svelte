@@ -11,6 +11,8 @@
   import LayersPanel from '$lib/components/3d/LayersPanel.svelte';
   import FileBrowserHex from '$lib/components/3d/FileBrowserHex.svelte';
   import FileListModal from '$lib/components/3d/FileListModal.svelte';
+  import StatusBar from '$lib/components/3d/StatusBar.svelte';
+  import { routeKeyDown, shouldProcessKeyUp, shouldAutoEnterInputMode } from '$lib/3d/input-mode';
   import { SCENE_BAY, APP_BAY, DEFAULT_SELECTIONS } from '$lib/components/3d/hexagon-dial-bays';
   import type { Layer3d, SerializableEntitySpec, File3d } from '$lib/3d/types';
   import { get } from 'svelte/store';
@@ -35,6 +37,10 @@
   let storeFiles: File3d[] = $state([]);
   let storeActiveFileId: string | null = $state(null);
   let activeLayers: Layer3d[] = $state([]);
+  let inputMode = $state(false);
+  let activeFileName = $derived(
+    storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
+  );
 
   function resolveSystemTheme(): 'light' | 'dark' {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -73,7 +79,7 @@
     files3dStore.init().then(async () => {
       const state = get(files3dStore);
       if (state.files.length === 0) {
-        const file = await files3dStore.create('Solar System');
+        const file = await files3dStore.create('Terran System');
         await files3dStore.updateLayers(file.id, structuredClone(solarLayers));
       }
       syncFromStore();
@@ -207,24 +213,22 @@
   function handleKeyDown(e: KeyboardEvent) {
     if (e.repeat) return;
 
+    // Route through input mode controller
+    const route = routeKeyDown(e.key, { inputMode, helpVisible, fileListVisible });
+    switch (route.action) {
+      case 'close_help': helpVisible = false; return;
+      case 'close_file_list': fileListVisible = false; return;
+      case 'exit_input_mode': inputMode = false; return;
+      case 'enter_input_mode': inputMode = true; return;
+      case 'blocked': return;
+      // 'passthrough' → continue to command mode handlers below
+    }
+
+    // --- Command mode only below ---
+
     // '?' toggles help overlay (Shift+/ on US layout)
     if (e.key === '?') {
       helpVisible = !helpVisible;
-      return;
-    }
-
-    // When help or file list is visible, only Escape closes it — block all other keys
-    if (helpVisible) {
-      if (e.key === 'Escape') {
-        helpVisible = false;
-      }
-      return;
-    }
-
-    if (fileListVisible) {
-      if (e.key === 'Escape') {
-        fileListVisible = false;
-      }
       return;
     }
 
@@ -316,6 +320,8 @@
   }
 
   function handleKeyUp(e: KeyboardEvent) {
+    if (!shouldProcessKeyUp({ inputMode, helpVisible, fileListVisible })) return;
+
     if (e.key === 'Shift') {
       shiftHeld = false;
       scene?.setInput('shift', false);
@@ -361,6 +367,14 @@
   function handleDialSelect(faceId: string, optionId: string) {
     dialSelections = { ...dialSelections, [faceId]: optionId };
 
+    // Scenes face: actions (not a persistent selection)
+    if (faceId === 'scenes') {
+      if (optionId === 'new') handleCreateFile();
+      else if (optionId === 'clone') handleCloneFile();
+      else if (optionId === 'list') { fileListVisible = true; }
+      return;
+    }
+
     // Scene bay actions
     if (faceId === 'theme') {
       themeMode = optionId as 'system' | 'light' | 'dark';
@@ -393,7 +407,13 @@
   }
 </script>
 
-<svelte:window onkeydown={handleKeyDown} onkeyup={handleKeyUp} />
+<svelte:window
+  onkeydown={handleKeyDown}
+  onkeyup={handleKeyUp}
+  onfocusin={(e) => {
+    if (shouldAutoEnterInputMode(e.target)) inputMode = true;
+  }}
+/>
 
 <div class="relative w-screen h-screen overflow-hidden" style="background: var(--canvas-bg);">
   <canvas bind:this={canvas} class="block w-full h-full"></canvas>
@@ -402,11 +422,6 @@
     <FileBrowserHex
       files={storeFiles}
       activeFileId={storeActiveFileId}
-      onSelectFile={handleSelectFile}
-      onCreateFile={handleCreateFile}
-      onDeleteFile={handleDeleteFile}
-      onCloneFile={handleCloneFile}
-      onShowFileList={() => { fileListVisible = true; }}
     />
 
     {#if layersPanelVisible}
@@ -490,6 +505,40 @@
       onClose={() => { fileListVisible = false; }}
     />
   {/if}
+
+  {#if controlsVisible}
+    <!-- Input mode toggle: above help hex -->
+    <button
+      class="input-mode-hex"
+      onclick={() => { inputMode = !inputMode; }}
+      aria-label={inputMode ? 'Switch to command mode' : 'Switch to input mode'}
+    >
+      <svg viewBox="0 0 34 30" width="34" height="30" class="block">
+        <polygon
+          points="31,15 24,27 10,27 3,15 10,3 24,3"
+          stroke-width="1"
+          stroke-linejoin="round"
+          style="fill: {inputMode ? 'rgba(59, 130, 246, 0.15)' : 'var(--glass-bg)'}; stroke: {inputMode ? '#3b82f6' : 'var(--glass-border)'};"
+        />
+        <text
+          x="17" y="16.5"
+          text-anchor="middle"
+          dominant-baseline="central"
+          fill={inputMode ? '#3b82f6' : 'var(--text-secondary)'}
+          font-size="14"
+          font-family="var(--font-main)"
+          font-weight="600"
+        >{inputMode ? 'I' : 'C'}</text>
+      </svg>
+    </button>
+  {/if}
+
+  <StatusBar
+    mode={inputMode ? 'input' : 'command'}
+    {cameraMode}
+    voiceRecording={false}
+    {activeFileName}
+  />
 </div>
 
 <style>
@@ -507,6 +556,23 @@
   }
 
   .help-hex:hover {
+    opacity: 1;
+  }
+
+  .input-mode-hex {
+    position: absolute;
+    top: 16px;
+    right: 342px; /* help-hex right (302px) + hex width (34px) + 6px gap */
+    z-index: 20;
+    background: none;
+    border: none;
+    cursor: pointer;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    padding: 0;
+  }
+
+  .input-mode-hex:hover {
     opacity: 1;
   }
 </style>

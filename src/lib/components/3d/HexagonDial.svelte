@@ -318,7 +318,7 @@
 
 <div
   bind:this={containerEl}
-  class="absolute right-6 bottom-6 z-20 flex flex-col items-center transition-opacity duration-300"
+  class="absolute right-6 bottom-[52px] z-20 flex flex-col items-center transition-opacity duration-300"
   style="opacity: {opacity};"
   onmouseenter={() => {
     hovered = true;

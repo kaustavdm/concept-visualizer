@@ -100,7 +100,7 @@
 </script>
 
 <div
-  class="absolute bottom-6 left-6 z-20 flex flex-col items-center gap-2 transition-opacity duration-300"
+  class="absolute bottom-[52px] left-6 z-20 flex flex-col items-center gap-2 transition-opacity duration-300"
   style="opacity: {opacity};"
   onmouseenter={() => {
     hovered = true;

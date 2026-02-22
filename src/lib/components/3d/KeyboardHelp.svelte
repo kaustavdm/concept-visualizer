@@ -80,8 +80,12 @@
           <span>Toggle controls</span>
         </div>
         <div class="shortcut-row">
+          <kbd>I</kbd>
+          <span>Enter input mode</span>
+        </div>
+        <div class="shortcut-row">
           <kbd>Esc</kbd>
-          <span>Close / dismiss</span>
+          <span>Close / exit input mode</span>
         </div>
       </div>
     </section>
