@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { settingsStore } from '$lib/stores/settings';
-  import { createScene, type SceneController, type CameraMode } from '$lib/3d/createScene';
+  import type { SceneController, CameraMode } from '$lib/3d/createScene';
   import { files3dStore } from '$lib/stores/files3d';
   import { composeLayers } from '$lib/3d/compositor';
   import { solarLayers } from '$lib/3d/scenes/solar';
@@ -81,10 +81,26 @@
     const initialTheme = resolveSystemTheme();
     applyTheme(initialTheme);
 
-    const s = createScene(canvas, initialTheme);
-    scene = s;
+    let raf: number;
+    let destroyed = false;
 
-    // Initialize 3D file store
+    // Dynamic import: PlayCanvas loads as a separate chunk (~2 MB)
+    import('$lib/3d/createScene').then(({ createScene }) => {
+      if (destroyed) return;
+      const s = createScene(canvas, initialTheme);
+      scene = s;
+
+      function tick() {
+        compassAngle = s.getCompassAngle();
+        raf = requestAnimationFrame(tick);
+      }
+      raf = requestAnimationFrame(tick);
+
+      // If store loaded before PlayCanvas, sync content now
+      syncFromStore();
+    });
+
+    // Initialize 3D file store (independent of PlayCanvas)
     files3dStore.init().then(async () => {
       const state = get(files3dStore);
       if (state.files.length === 0) {
@@ -111,24 +127,18 @@
     const unsub = settingsStore.subscribe((settings) => {
       if (themeMode !== 'system') {
         theme = settings.theme;
-        s.setTheme(settings.theme);
+        scene?.setTheme(settings.theme);
         document.documentElement.setAttribute('data-theme', settings.theme);
       }
     });
 
-    let raf: number;
-    function tick() {
-      compassAngle = s.getCompassAngle();
-      raf = requestAnimationFrame(tick);
-    }
-    raf = requestAnimationFrame(tick);
-
     return () => {
+      destroyed = true;
       mql.removeEventListener('change', onSystemChange);
       unsub();
       unsub3d();
       cancelAnimationFrame(raf);
-      s.destroy();
+      scene?.destroy();
       scene = null;
     };
   });
