@@ -162,6 +162,12 @@ function toSceneEntity(
     spec.components = components as SceneEntitySpec['components'];
   }
 
+  // Map grid render component to opacity spec for buildGridFloor
+  if (components?.render?.grid) {
+    const grid = components.render.grid as { tiling: number };
+    spec.opacity = { map: 'grid', tiling: grid.tiling, blend: true };
+  }
+
   // Set parent if this is a child entity
   if (parentNamespacedId) {
     spec.parent = parentNamespacedId;

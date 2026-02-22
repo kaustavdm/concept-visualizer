@@ -34,7 +34,7 @@ const PYRAMID_POS: [number, number, number] = [0, 0, 0];
 
 const floorEntity: EntitySpec = {
   id: 'floor',
-  components: { render: { type: 'plane' } },
+  components: { render: { type: 'plane', grid: { tiling: 4 } } },
   material: {
     diffuse: [0.5, 0.5, 0.55],
   },

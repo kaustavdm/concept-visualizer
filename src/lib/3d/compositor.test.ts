@@ -421,6 +421,43 @@ describe('composeLayers', () => {
     expect(result.entities[0].followable).toBe(true);
   });
 
+  it('maps grid render component to opacity spec for grid floor', () => {
+    const layers = [
+      makeLayer({
+        id: 'ground',
+        entities: [
+          makeEntity({
+            id: 'floor',
+            components: { render: { type: 'plane', grid: { tiling: 4 } } },
+            position: [0, -1, 0],
+            scale: [80, 1, 80],
+          }),
+        ],
+      }),
+    ];
+
+    const result = composeLayers(layers, 'scene-1');
+
+    expect(result.entities[0].opacity).toEqual({
+      map: 'grid',
+      tiling: 4,
+      blend: true,
+    });
+  });
+
+  it('does not set opacity when render component has no grid', () => {
+    const layers = [
+      makeLayer({
+        id: 'L',
+        entities: [makeEntity({ id: 'plane', components: { render: { type: 'plane' } } })],
+      }),
+    ];
+
+    const result = composeLayers(layers, 'scene-1');
+
+    expect(result.entities[0].opacity).toBeUndefined();
+  });
+
   it('passes through components to SceneEntitySpec', () => {
     const layers = [
       makeLayer({
