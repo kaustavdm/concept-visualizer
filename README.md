@@ -52,6 +52,10 @@ Open `http://localhost:5173` for the 3D visualizer.
 
 Configure the LLM endpoint and model in **Settings**.
 
+## Documentation
+
+- **[DSL Reference](docs/dsl.md)** — Entity spec, animation primitives, layers, prefabs, observation modes
+
 ## Development
 
 ```bash
