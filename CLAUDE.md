@@ -6,10 +6,13 @@ SvelteKit 2 SPA (adapter-static, SSR disabled) with Svelte 5 runes ($props, $sta
 
 ## Key Patterns
 
-- **Stores**: Svelte writable stores in `src/lib/stores/` — filesStore, vizStore, settingsStore, focusStore
-- **Database**: Dexie.js wrapping IndexedDB in `src/lib/db/index.ts`. Tables: files, settings
+- **Stores**: Svelte writable stores in `src/lib/stores/` — filesStore, vizStore, settingsStore, focusStore, files3dStore
+- **Database**: Dexie.js wrapping IndexedDB in `src/lib/db/index.ts`. Tables: files, settings, files3d
 - **Extractors**: `src/lib/extractors/` — ConceptExtractor interface, four engines behind a registry. All produce VisualizationSchema
-- **Renderers**: `src/lib/components/visualizer/renderers/` — D3.js renderers for graph, tree, flowchart, hierarchy
+- **3D Entity DSL**: PlayCanvas-aligned component-bag structure. Entities have `components: { render, light, ... }` matching PlayCanvas API. Typed subset of common properties + `[key: string]: unknown` passthrough for advanced PlayCanvas properties. Design doc: `docs/plans/2026-02-22-dsl-redesign-design.md`
+- **Prefab System**: Named entity templates resolved at layer-creation time. Observation mode renderers use prefabs to map abstract concepts to 3D entities. Prefabs are data (JSON registry), not runtime instantiation.
+- **Observation Modes**: 3D renderers that take VisualizationSchema → Layer3d[]. Each mode has its own visual language (spatial metaphor, color palette, prefabs). Registered via ObservationModeRegistry.
+- **Renderers (2D)**: `src/lib/components/visualizer/renderers/` — D3.js renderers for graph, tree, flowchart, hierarchy (deprecated `/2d` route)
 - **Renderer utilities**: `src/lib/components/visualizer/renderers/utils.ts` — shared palette (`THEME_COLORS_LIGHT`/`THEME_COLORS_DARK`), `themeColor()`, `nodeRadius()`, `edgeThickness()`, `edgeOpacity()`, `hexToRgba()`, `truncate()`
 - **Controls**: `src/lib/components/controls/` — Gamepad-inspired pad components (nav/zoom only on canvas), keyboard controller in `src/lib/controllers/keyboard.ts`
 
@@ -89,10 +92,22 @@ The central data contract is `VisualizationSchema` in `src/lib/types.ts`. All ex
 - **Keyboard shortcuts**: Enter=visualize, Tab=cycle type, P=export, Q=auto-send (unchanged)
 - Right HUD cluster removed to free canvas for tooltip overlays
 
+## 3D Pipeline
+
+Chat-driven concept visualization: user types in floating CodeMirror input → extraction pipeline produces VisualizationSchema → observation mode renderer maps schema to Layer3d[] → compositor merges layers → PlayCanvas renders.
+
+- **Two-stage**: shared extractor (VisualizationSchema) + mode-specific 3D renderer (Layer3d[])
+- **Additive**: each chat message appends layers, doesn't replace
+- **CRDT-ready**: fractional index ordering, UUID layer IDs, provenance tracking via LayerSource
+- **Scene3d** replaces File3d: adds `environment`, `messages[]`, `version`, `layers[].source`
+
 ## Upcoming Work
 
-- Integration of extraction pipeline (extractors, LLM client) into 3D visualizer
-- Repurposing 2D components (renderers, editor pane) for 3D context
+- DSL redesign implementation (see `docs/plans/2026-02-22-dsl-redesign-design.md`)
+- Observation mode renderers (graph, morality, epistemology, storyboard)
+- Chat input UI (CodeMirror floating input)
+- Pipeline integration into 3D homepage
+- Prefab registry and starter prefabs
 
 ## Testing
 
