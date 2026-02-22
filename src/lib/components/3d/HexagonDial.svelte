@@ -421,7 +421,7 @@
             role="button"
             tabindex="-1"
             aria-label={face.label}
-          />
+          ><title>{face.label} ({face.keyHint})</title></path>
         {/each}
 
         <!-- Face icons and key hints -->
@@ -471,7 +471,7 @@
         role="button"
         tabindex="-1"
         aria-label="Switch bay"
-      />
+      ><title>Switch bay (L)</title></circle>
       <svg
         x={80 - 8}
         y={80 - 8}
@@ -531,7 +531,7 @@
               role="button"
               tabindex="-1"
               aria-label={opt.label}
-            />
+            ><title>{opt.label}</title></circle>
             <text
               x={opt.x}
               y={opt.y}

@@ -467,6 +467,7 @@
     class="help-hex"
     onclick={() => { helpVisible = !helpVisible; }}
     aria-label="Toggle keyboard shortcuts help"
+    title="Keyboard shortcuts (?)"
   >
     <svg viewBox="0 0 34 30" width="34" height="30" class="block">
       <polygon
@@ -512,6 +513,7 @@
       class="input-mode-hex"
       onclick={() => { inputMode = !inputMode; }}
       aria-label={inputMode ? 'Switch to command mode' : 'Switch to input mode'}
+      title={inputMode ? 'Input mode (Esc to exit)' : 'Command mode (I)'}
     >
       <svg viewBox="0 0 34 30" width="34" height="30" class="block">
         <polygon

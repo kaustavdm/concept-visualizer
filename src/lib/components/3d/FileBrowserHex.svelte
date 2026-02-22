@@ -77,6 +77,7 @@
     class:browser-btn-active={hovered}
     ondblclick={handleDoubleClick}
     aria-label="Double-click to rename scene"
+    title="Double-click to rename"
   >
     {#if editing}
       <!-- svelte-ignore a11y_no_static_element_interactions -->

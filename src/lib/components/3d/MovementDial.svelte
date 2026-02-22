@@ -87,12 +87,12 @@
     return 'var(--pad-btn-bg)';
   }
 
-  // Directional triangles: [action, polygon points, key hint label, hint x, hint y]
-  const TRIANGLES: [string, string, string, number, number][] = [
-    ['pan_up', '64,50 96,50 80,12', 'W', 80, 37],
-    ['pan_down', '64,110 96,110 80,148', 'S', 80, 123],
-    ['pan_left', '50,64 50,96 12,80', 'A', 37, 80],
-    ['pan_right', '110,64 110,96 148,80', 'D', 123, 80],
+  // Directional triangles: [action, polygon points, key hint label, hint x, hint y, tooltip]
+  const TRIANGLES: [string, string, string, number, number, string][] = [
+    ['pan_up', '64,50 96,50 80,12', 'W', 80, 37, 'Pan up (W)'],
+    ['pan_down', '64,110 96,110 80,148', 'S', 80, 123, 'Pan down (S)'],
+    ['pan_left', '50,64 50,96 12,80', 'A', 37, 80, 'Pan left (A)'],
+    ['pan_right', '110,64 110,96 148,80', 'D', 123, 80, 'Pan right (D)'],
   ];
 
   // Flat-top hexagon points (viewBox 0 0 34 30, centered at 17,15, R=14)
@@ -177,7 +177,7 @@
       />
 
       <!-- Direction triangles -->
-      {#each TRIANGLES as [action, points, hint, hx, hy]}
+      {#each TRIANGLES as [action, points, hint, hx, hy, tooltip]}
         <polygon
           {points}
           stroke-width={allActive.has(action) ? 3 : hoveredButton === action ? 1.5 : 1}
@@ -192,7 +192,7 @@
           role="button"
           tabindex="-1"
           aria-label={hint}
-        />
+        ><title>{tooltip}</title></polygon>
         {#if showKeyHints}
           <text
             x={hx}
@@ -223,7 +223,7 @@
         role="button"
         tabindex="-1"
         aria-label="Look at origin"
-      />
+      ><title>Look at origin (C)</title></circle>
       <!-- Compass needle (rotates to point toward origin) -->
       <g transform="rotate({compassAngle}, 80, 80)" pointer-events="none">
         <polygon points="80,60 76,80 84,80" opacity="0.9"
@@ -292,7 +292,7 @@
           role="button"
           tabindex="-1"
           aria-label="Zoom in"
-        />
+        ><title>Zoom in (Z)</title></polygon>
         <!-- Plus icon -->
         <line
           x1="12" y1="15" x2="22" y2="15"
@@ -337,7 +337,7 @@
           role="button"
           tabindex="-1"
           aria-label="Zoom out"
-        />
+        ><title>Zoom out (X)</title></polygon>
         <!-- Minus icon -->
         <line
           x1="12" y1="15" x2="22" y2="15"
