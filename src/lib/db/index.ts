@@ -1,9 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { ConceptFile, AppSettings } from '$lib/types';
+import type { File3d } from '$lib/3d/types';
 
 class ConceptDB extends Dexie {
   files!: EntityTable<ConceptFile, 'id'>;
   settings!: EntityTable<AppSettings, 'id'>;
+  files3d!: EntityTable<File3d, 'id'>;
 
   constructor() {
     super('ConceptVisualizerDB');
@@ -16,6 +18,12 @@ class ConceptDB extends Dexie {
     this.version(2).stores({
       files: 'id, title, updatedAt',
       settings: 'id'
+    });
+    // Version 3: Add files3d table for 3D scene persistence
+    this.version(3).stores({
+      files: 'id, title, updatedAt',
+      settings: 'id',
+      files3d: 'id, title, updatedAt'
     });
   }
 }
