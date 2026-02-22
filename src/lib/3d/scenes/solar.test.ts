@@ -16,6 +16,34 @@ describe('solarLayers', () => {
       expect(typeof layer.visible).toBe('boolean');
       expect(Array.isArray(layer.entities)).toBe(true);
       expect(typeof layer.position).toBe('string');
+      expect(layer).toHaveProperty('source');
+      expect(layer.source).toHaveProperty('type');
+    }
+  });
+
+  it('every layer has ISO date strings for createdAt and updatedAt', () => {
+    const isoDateRegex = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/;
+    for (const layer of solarLayers) {
+      expect(layer.createdAt).toMatch(isoDateRegex);
+      expect(layer.updatedAt).toMatch(isoDateRegex);
+    }
+  });
+
+  it('every entity uses components.render.type instead of mesh', () => {
+    for (const layer of solarLayers) {
+      for (const entity of layer.entities) {
+        expect(entity).toHaveProperty('components');
+        expect(entity.components.render).toBeDefined();
+        expect(typeof entity.components.render!.type).toBe('string');
+        // Should not have a top-level 'mesh' property
+        expect(entity).not.toHaveProperty('mesh');
+      }
+    }
+  });
+
+  it('layers use source field with type manual', () => {
+    for (const layer of solarLayers) {
+      expect(layer.source).toEqual({ type: 'manual' });
     }
   });
 
