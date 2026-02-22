@@ -1,15 +1,18 @@
 <script lang="ts">
-  import type { Layer3d, SerializableEntitySpec } from '$lib/3d/types';
+  import type { EntitySpec, Layer3d } from '$lib/3d/entity-spec';
   import VoiceInput from './VoiceInput.svelte';
 
   interface Props {
     layers: Layer3d[];
     onToggleVisibility: (layerId: string) => void;
     onUpdateText: (layerId: string, text: string) => void;
-    onUpdateEntities: (layerId: string, entities: SerializableEntitySpec[]) => void;
+    onUpdateEntities: (layerId: string, entities: EntitySpec[]) => void;
     onAddLayer: () => void;
     onRemoveLayer: (layerId: string) => void;
     onGenerate?: (layerId: string, text: string) => void;
+    observationModes?: string[];
+    activeObservationMode?: string;
+    onSelectObservationMode?: (mode: string) => void;
   }
 
   let {
@@ -20,6 +23,9 @@
     onAddLayer,
     onRemoveLayer,
     onGenerate,
+    observationModes,
+    activeObservationMode,
+    onSelectObservationMode,
   }: Props = $props();
 
   let panelExpanded = $state(true);
@@ -28,7 +34,7 @@
   let hoveredLayerId: string | null = $state(null);
 
   let sortedLayers = $derived(
-    [...layers].sort((a, b) => a.order - b.order)
+    [...layers].sort((a, b) => a.position.localeCompare(b.position))
   );
 
   function toggleExpand(layerId: string) {
@@ -52,7 +58,7 @@
     const target = event.target as HTMLTextAreaElement;
     const value = target.value;
     try {
-      const parsed = JSON.parse(value) as SerializableEntitySpec[];
+      const parsed = JSON.parse(value) as EntitySpec[];
       if (!Array.isArray(parsed)) {
         jsonErrors = { ...jsonErrors, [layerId]: 'Must be an array' };
         return;
@@ -87,6 +93,20 @@
       <span class="chevron" class:chevron-collapsed={!panelExpanded}>&#x25BE;</span>
       <span class="panel-title">Layers</span>
     </button>
+    {#if observationModes && observationModes.length > 0 && onSelectObservationMode}
+      <div class="mode-selector">
+        {#each observationModes as mode}
+          <button
+            class="mode-pill"
+            class:mode-active={activeObservationMode === mode}
+            onclick={() => onSelectObservationMode(mode)}
+            title="Filter by {mode} mode"
+          >
+            {mode}
+          </button>
+        {/each}
+      </div>
+    {/if}
     <button
       class="add-btn"
       onclick={onAddLayer}
@@ -172,6 +192,18 @@
             aria-controls="layer-detail-{layer.id}"
           >
             <span class="layer-name" title={layer.name}>{layer.name}</span>
+            {#if layer.source?.type === 'chat'}
+              <span title="From chat" class="source-badge">chat</span>
+            {:else if layer.source?.type === 'import'}
+              <span title="Imported" class="source-badge">import</span>
+            {:else if layer.source?.type === 'clone'}
+              <span title="Cloned" class="source-badge">clone</span>
+            {/if}
+            {#if layer.observationMode}
+              <span class="observation-badge">
+                {layer.observationMode}
+              </span>
+            {/if}
           </button>
 
           <!-- Remove button (visible on hover) -->
@@ -338,6 +370,39 @@
     background: var(--pad-btn-bg-hover);
   }
 
+  .mode-selector {
+    display: flex;
+    gap: 4px;
+    margin-left: auto;
+    margin-right: 6px;
+  }
+
+  .mode-pill {
+    font-family: var(--font-main);
+    font-size: 10px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    padding: 2px 8px;
+    border-radius: 9999px;
+    border: 1px solid var(--glass-border);
+    background: var(--pad-btn-bg);
+    color: var(--pad-icon-muted);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+  }
+
+  .mode-pill:hover {
+    background: var(--pad-btn-bg-hover);
+    color: var(--pad-icon);
+  }
+
+  .mode-pill.mode-active {
+    background: var(--accent);
+    color: #fff;
+    border-color: var(--accent);
+  }
+
   .layer-list-drawer {
     max-height: calc(100vh - 260px);
     overflow: hidden;
@@ -401,6 +466,7 @@
     flex: 1;
     display: flex;
     align-items: center;
+    gap: 5px;
     min-width: 0;
     background: none;
     border: none;
@@ -416,6 +482,25 @@
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .source-badge {
+    font-size: 9px;
+    opacity: 0.5;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    flex-shrink: 0;
+  }
+
+  .observation-badge {
+    font-size: 10px;
+    padding: 0 6px;
+    line-height: 16px;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
+    color: var(--accent);
+    white-space: nowrap;
+    flex-shrink: 0;
   }
 
   .remove-btn {
