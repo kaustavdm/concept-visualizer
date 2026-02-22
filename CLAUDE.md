@@ -12,6 +12,8 @@ SvelteKit 2 SPA (adapter-static, SSR disabled) with Svelte 5 runes ($props, $sta
 - **3D Entity DSL**: PlayCanvas-aligned component-bag structure. Entities have `components: { render, light, ... }` matching PlayCanvas API. Typed subset of common properties + `[key: string]: unknown` passthrough for advanced PlayCanvas properties. Design doc: `docs/plans/2026-02-22-dsl-redesign-design.md`
 - **Prefab System**: Named entity templates resolved at layer-creation time. Observation mode renderers use prefabs to map abstract concepts to 3D entities. Prefabs are data (JSON registry), not runtime instantiation.
 - **Observation Modes**: 3D renderers that take VisualizationSchema → Layer3d[]. Each mode has its own visual language (spatial metaphor, color palette, prefabs). Registered via ObservationModeRegistry.
+- **Glass Modals**: Settings, Help, Onboarding use shared `GlassModal.svelte` wrapper. URL-driven via SvelteKit shallow routing (`pushState` from `$app/navigation`, state read from `$page.state.modal`). Scene stays mounted.
+- **Hex Dial**: Two bays (Scene, App) with face→fan-out interaction. Faces with `options: []` trigger toggle directly (no fan-out). Config in `hexagon-dial-bays.ts`.
 
 ## Commands
 
@@ -43,7 +45,6 @@ src/
     +layout.svelte     # Global CSS + theme sync
     +layout.ts         # SPA mode (ssr=false)
     3d/+page.ts        # Redirect → /
-    settings/+page.svelte
   lib/
     types.ts           # VisualizationSchema, AppSettings
     db/index.ts        # Dexie database
@@ -53,7 +54,7 @@ src/
     pipeline/          # Extraction pipeline orchestrator
     3d/                # Entity DSL, compositor, animation, observation modes, prefabs
     components/
-      AppShell.svelte  # Three-slot layout (sidebar, main, editor)
+      AppShell.svelte  # Global layout wrapper
       3d/              # 3D-specific components (scene, controls, panels)
 docs/plans/            # Design docs and implementation plans
 ```
@@ -85,6 +86,12 @@ Chat-driven concept visualization: user types in floating CodeMirror input → e
 - Additional observation mode renderers (morality, epistemology, storyboard)
 - Starter prefab definitions for each observation mode
 - Environment presets per observation mode
+
+## Gotchas
+
+- **IndexedDB default data gets stale**: Default scenes (e.g. `solarLayers`) are only seeded on first launch. If the source definition changes, existing users keep old data. Add migration logic in the files3dStore init path when changing built-in scene definitions.
+- **Compositor must explicitly map EntitySpec fields to SceneEntitySpec**: The `[key: string]: unknown` passthrough on `RenderComponentSpec` does NOT automatically bridge to `SceneEntitySpec` fields like `opacity`. Special rendering modes (grid floor, etc.) need explicit mapping in `toSceneEntity()`.
+- **AppSettings changes need test fixture updates**: `AppSettings` is used in test fixtures in `orchestrator.test.ts` and `db/index.test.ts`. Adding a new field requires updating both.
 
 ## Testing
 
