@@ -16,6 +16,7 @@ export interface SceneController {
   setInput(action: string, active: boolean): void;
   lookAtOrigin(): void;
   getCompassAngle(): number;
+  getFps(): number;
   loadContent(content: SceneContent): void;
   unloadContent(): void;
   getFollowableEntities(): string[];
@@ -383,6 +384,9 @@ export function createScene(
   canvas.addEventListener('wheel', onWheel, { passive: false });
 
   let time = 0;
+  let fpsFrameCount = 0;
+  let fpsAccumTime = 0;
+  let currentFps = 0;
   let prevEffectiveMode: CameraMode = 'orbit';
 
   let lookAtActive = false;
@@ -420,6 +424,15 @@ export function createScene(
 
   // --- Update loop ---
   app.on('update', (dt: number) => {
+    // FPS counter — accumulate frames, compute once per second
+    fpsFrameCount++;
+    fpsAccumTime += dt;
+    if (fpsAccumTime >= 1.0) {
+      currentFps = fpsFrameCount;
+      fpsFrameCount = 0;
+      fpsAccumTime -= 1.0;
+    }
+
     time += dt;
 
     // Animate scene content entities
@@ -714,6 +727,10 @@ export function createScene(
 
     getCompassAngle() {
       return computeCompassAngle();
+    },
+
+    getFps() {
+      return currentFps;
     },
 
     getFollowableEntities() {
