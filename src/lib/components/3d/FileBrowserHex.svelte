@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { File3d } from '$lib/3d/types';
+  import { files3dStore } from '$lib/stores/files3d';
 
   interface Props {
     files: File3d[];
@@ -7,6 +8,8 @@
     onSelectFile: (id: string) => void;
     onCreateFile: () => void;
     onDeleteFile?: (id: string) => void;
+    onCloneFile?: () => void;
+    onShowFileList?: () => void;
   }
 
   let {
@@ -15,21 +18,19 @@
     onSelectFile,
     onCreateFile,
     onDeleteFile,
+    onCloneFile,
+    onShowFileList,
   }: Props = $props();
-
-  // --- Constants ---
-
-  const HEX_PATH = 'M30,0 L60,17 L60,52 L30,69 L0,52 L0,17 Z';
-  const MAX_FAN_FILES = 5;
 
   // --- State ---
 
-  type BrowserState = 'collapsed' | 'fan' | 'panel';
+  type BrowserState = 'collapsed' | 'fan';
   let browserState: BrowserState = $state('collapsed');
   let hovered = $state(false);
-  let searchQuery = $state('');
   let hoveredFanNode: string | null = $state(null);
-  let hoveredFileId: string | null = $state(null);
+  let editing = $state(false);
+  let editValue = $state('');
+  let editInput: HTMLInputElement | undefined = $state();
 
   // --- Derived ---
 
@@ -37,81 +38,52 @@
     activeFileId ? files.find((f) => f.id === activeFileId) ?? null : null
   );
 
-  let hexLabel = $derived(
-    activeFile ? truncate(activeFile.title, 6) : 'Files'
-  );
+  let displayName = $derived(activeFile?.title ?? 'Untitled');
 
-  /** Recent files excluding active, sorted newest first */
-  let recentFiles = $derived(
-    files
-      .filter((f) => f.id !== activeFileId)
-      .sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime())
-  );
+  // --- Fan action items ---
 
-  /** Fan-out nodes: up to MAX_FAN_FILES recent files + "+" New */
-  let fanFiles = $derived(recentFiles.slice(0, MAX_FAN_FILES));
-  let hasMore = $derived(recentFiles.length > MAX_FAN_FILES);
-
-  /** Build fan items: files + "+" node + optional "..." node */
-  let fanItems = $derived.by(() => {
-    const items: FanItem[] = fanFiles.map((f) => ({
-      type: 'file' as const,
-      id: f.id,
-      label: truncate(f.title, 8),
-    }));
-    items.push({ type: 'new' as const, id: '__new__', label: '+ New' });
-    if (hasMore) {
-      items.push({ type: 'more' as const, id: '__more__', label: '...' });
-    }
-    return items;
-  });
-
-  let fanPositions = $derived(
-    fanItems.map((item, i) => ({
-      ...item,
-      ...fanPosition(i, fanItems.length),
-    }))
-  );
-
-  /** Panel file list filtered by search */
-  let filteredFiles = $derived(
-    searchQuery
-      ? files.filter((f) =>
-          f.title.toLowerCase().includes(searchQuery.toLowerCase())
-        )
-      : files
-  );
-
-  // --- Types ---
-
-  type FanItem = {
-    type: 'file' | 'new' | 'more';
+  type ActionItem = {
     id: string;
     label: string;
+    icon: 'clone' | 'files';
   };
 
-  // --- Functions ---
+  const fanActions: ActionItem[] = [
+    { id: 'clone', label: 'Clone', icon: 'clone' },
+    { id: 'files', label: 'Files', icon: 'files' },
+  ];
 
-  function truncate(str: string, max: number): string {
-    if (str.length <= max) return str;
-    return str.slice(0, max - 1) + '\u2026';
-  }
-
-  function fanPosition(index: number, total: number): { x: number; y: number } {
-    const startAngle = Math.PI * 0.15;
-    const endAngle = Math.PI * 0.85;
-    const radius = 70;
-    const angle =
-      total <= 1
-        ? Math.PI * 0.5
-        : startAngle + (endAngle - startAngle) * (index / (total - 1));
+  function fanPosition(index: number): { x: number; y: number } {
+    // Position at ~45deg and ~75deg below-right, 55px radius
+    const angles = [Math.PI * 0.25, Math.PI * 0.42];
+    const radius = 55;
+    const angle = angles[index] ?? Math.PI * 0.35;
     return {
       x: Math.cos(angle) * radius,
       y: Math.sin(angle) * radius,
     };
   }
 
-  function handleHexClick() {
+  let fanPositions = $derived(
+    fanActions.map((action, i) => ({
+      ...action,
+      ...fanPosition(i),
+    }))
+  );
+
+  // --- Auto-focus + select on edit ---
+
+  $effect(() => {
+    if (editing && editInput) {
+      editInput.focus();
+      editInput.select();
+    }
+  });
+
+  // --- Handlers ---
+
+  function handleButtonClick() {
+    if (editing) return;
     if (browserState === 'collapsed') {
       browserState = 'fan';
     } else {
@@ -119,41 +91,49 @@
     }
   }
 
-  function handleFanClick(item: FanItem & { x: number; y: number }) {
-    if (item.type === 'file') {
-      onSelectFile(item.id);
-      browserState = 'collapsed';
-    } else if (item.type === 'new') {
-      onCreateFile();
-      browserState = 'collapsed';
-    } else if (item.type === 'more') {
-      browserState = 'panel';
+  function handleDoubleClick(e: MouseEvent) {
+    e.stopPropagation();
+    if (!activeFile) return;
+    editing = true;
+    editValue = activeFile.title;
+    browserState = 'collapsed';
+  }
+
+  function handleEditKeyDown(e: KeyboardEvent) {
+    e.stopPropagation();
+    if (e.key === 'Enter') {
+      commitEdit();
+    } else if (e.key === 'Escape') {
+      cancelEdit();
     }
   }
 
-  function handlePanelFileClick(id: string) {
-    onSelectFile(id);
+  function commitEdit() {
+    if (activeFileId && editValue.trim()) {
+      files3dStore.rename(activeFileId, editValue.trim());
+    }
+    editing = false;
+  }
+
+  function cancelEdit() {
+    editing = false;
+  }
+
+  function handleFanClick(action: ActionItem) {
     browserState = 'collapsed';
+    if (action.id === 'clone') {
+      onCloneFile?.();
+    } else if (action.id === 'files') {
+      onShowFileList?.();
+    }
   }
 
   function handleBackdropClick() {
     browserState = 'collapsed';
-    searchQuery = '';
-  }
-
-  function handleDeleteClick(e: MouseEvent, id: string) {
-    e.stopPropagation();
-    onDeleteFile?.(id);
-  }
-
-  function handlePanelNewClick() {
-    onCreateFile();
-    browserState = 'collapsed';
-    searchQuery = '';
   }
 </script>
 
-<!-- Backdrop: closes browser when clicking outside -->
+<!-- Backdrop: closes fan when clicking outside -->
 {#if browserState !== 'collapsed'}
   <button
     class="backdrop"
@@ -171,50 +151,54 @@
   tabindex="0"
   aria-label="File browser"
 >
-  <!-- Collapsed hex button -->
+  <!-- Main button -->
   <button
-    class="hex-btn"
-    class:hex-hovered={hovered || browserState !== 'collapsed'}
-    onclick={handleHexClick}
-    aria-label={browserState === 'collapsed' ? 'Open file browser' : 'Close file browser'}
+    class="browser-btn"
+    class:browser-btn-active={hovered || browserState !== 'collapsed'}
+    onclick={handleButtonClick}
+    ondblclick={handleDoubleClick}
+    aria-label={browserState === 'collapsed' ? 'Open file actions' : 'Close file actions'}
     aria-expanded={browserState !== 'collapsed'}
   >
-    <svg viewBox="0 0 60 69" width="60" height="52" class="hex-svg">
-      <path
-        d={HEX_PATH}
-        class="hex-shape"
-        class:hex-shape-active={browserState !== 'collapsed'}
+    {#if editing}
+      <!-- svelte-ignore a11y_no_static_element_interactions -->
+      <input
+        bind:this={editInput}
+        type="text"
+        class="edit-input"
+        bind:value={editValue}
+        onkeydown={handleEditKeyDown}
+        onblur={commitEdit}
+        onclick={(e) => e.stopPropagation()}
+        ondblclick={(e) => e.stopPropagation()}
       />
-    </svg>
-    <span class="hex-label">{hexLabel}</span>
+    {:else}
+      <span class="btn-label">{displayName}</span>
+    {/if}
   </button>
 
-  <!-- Fan-out -->
+  <!-- Fan-out actions -->
   {#if browserState === 'fan'}
-    <div class="fan-container" aria-label="Recent files">
+    <div class="fan-container" aria-label="File actions">
       <svg
-        viewBox="-100 -20 200 120"
-        width="200"
-        height="120"
+        viewBox="-20 -20 120 100"
+        width="120"
+        height="100"
         class="fan-svg"
         overflow="visible"
       >
         {#each fanPositions as item, i}
           <g
             class="fan-node"
-            style="
-              --fan-delay: {i * 40}ms;
-              transform-origin: {item.x}px {item.y}px;
-            "
+            style="--fan-delay: {i * 40}ms;"
           >
+            <!-- Circle -->
             <circle
               cx={item.x}
               cy={item.y}
-              r="24"
+              r="22"
               class="fan-circle"
               class:fan-circle-hovered={hoveredFanNode === item.id}
-              class:fan-circle-new={item.type === 'new'}
-              class:fan-circle-more={item.type === 'more'}
               onclick={() => handleFanClick(item)}
               onkeydown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') handleFanClick(item);
@@ -223,82 +207,43 @@
               onmouseleave={() => (hoveredFanNode = null)}
               role="button"
               tabindex="0"
-              aria-label={item.type === 'new'
-                ? 'Create new file'
-                : item.type === 'more'
-                  ? 'Show all files'
-                  : item.label}
+              aria-label={item.label}
             />
+            <!-- Icon -->
+            {#if item.icon === 'clone'}
+              <g
+                transform="translate({item.x - 7}, {item.y - 7})"
+                pointer-events="none"
+              >
+                <rect x="2" y="0" width="9" height="11" rx="1.5"
+                  fill="none" stroke="var(--text-primary)" stroke-width="1.3" />
+                <rect x="5" y="3" width="9" height="11" rx="1.5"
+                  fill="var(--glass-bg)" stroke="var(--text-primary)" stroke-width="1.3" />
+              </g>
+            {:else if item.icon === 'files'}
+              <g
+                transform="translate({item.x - 6}, {item.y - 7})"
+                pointer-events="none"
+              >
+                <rect x="0" y="0" width="12" height="3" rx="0.5"
+                  fill="var(--text-primary)" opacity="0.8" />
+                <rect x="0" y="5" width="12" height="3" rx="0.5"
+                  fill="var(--text-primary)" opacity="0.5" />
+                <rect x="0" y="10" width="12" height="3" rx="0.5"
+                  fill="var(--text-primary)" opacity="0.3" />
+              </g>
+            {/if}
+            <!-- Label below icon -->
             <text
               x={item.x}
-              y={item.y}
+              y={item.y + 16}
               text-anchor="middle"
-              dominant-baseline="central"
               class="fan-label"
               pointer-events="none"
             >{item.label}</text>
           </g>
         {/each}
       </svg>
-    </div>
-  {/if}
-
-  <!-- Full panel -->
-  {#if browserState === 'panel'}
-    <div class="panel" role="dialog" aria-label="All files">
-      <div class="panel-search">
-        <input
-          type="text"
-          class="search-input"
-          placeholder="Search files..."
-          bind:value={searchQuery}
-        />
-      </div>
-
-      <div class="panel-list">
-        {#each filteredFiles as file (file.id)}
-          <!-- svelte-ignore a11y_no_static_element_interactions -->
-          <div
-            class="panel-file"
-            class:panel-file-active={file.id === activeFileId}
-            class:panel-file-hovered={hoveredFileId === file.id}
-            onclick={() => handlePanelFileClick(file.id)}
-            onkeydown={(e) => { if (e.key === 'Enter' || e.key === ' ') handlePanelFileClick(file.id); }}
-            onmouseenter={() => (hoveredFileId = file.id)}
-            onmouseleave={() => (hoveredFileId = null)}
-            role="button"
-            tabindex="0"
-            aria-label="Select {file.title}"
-            aria-current={file.id === activeFileId ? 'true' : undefined}
-          >
-            <span class="panel-file-title">{truncate(file.title, 20)}</span>
-            {#if onDeleteFile && file.id !== activeFileId}
-              <button
-                class="delete-btn"
-                onclick={(e) => handleDeleteClick(e, file.id)}
-                aria-label="Delete {file.title}"
-                tabindex="-1"
-              >
-                <svg viewBox="0 0 24 24" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5">
-                  <path d="M18 6L6 18M6 6l12 12" />
-                </svg>
-              </button>
-            {/if}
-          </div>
-        {/each}
-
-        {#if filteredFiles.length === 0}
-          <div class="panel-empty">No files found</div>
-        {/if}
-      </div>
-
-      <button
-        class="panel-new-btn"
-        onclick={handlePanelNewClick}
-        aria-label="Create new scene"
-      >
-        + New Scene
-      </button>
     </div>
   {/if}
 </div>
@@ -323,71 +268,70 @@
     font-family: var(--font-main);
   }
 
-  /* --- Hex button --- */
+  /* --- Rounded rect button --- */
 
-  .hex-btn {
+  .browser-btn {
     position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 60px;
-    height: 52px;
-    background: none;
-    border: none;
+    min-width: 48px;
+    max-width: 200px;
+    height: 36px;
+    padding: 0 14px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
     cursor: pointer;
-    padding: 0;
-    opacity: 0.7;
-    transition: opacity 0.2s ease;
+    opacity: 0.75;
+    transition: opacity 0.2s ease, background 0.15s, border-color 0.15s;
+    box-shadow:
+      inset 0 1px 1px rgba(255, 255, 255, 0.08),
+      0 2px 8px rgba(0, 0, 0, 0.15);
   }
 
-  .hex-btn:hover,
-  .hex-hovered {
+  .browser-btn:hover,
+  .browser-btn-active {
     opacity: 1;
+    background: var(--glass-bg);
+    border-color: var(--accent);
   }
 
-  .hex-svg {
-    position: absolute;
-    inset: 0;
-  }
-
-  .hex-shape {
-    fill: var(--glass-bg);
-    stroke: var(--glass-border);
-    stroke-width: 1.5;
-    transition: fill 0.15s, stroke 0.15s;
-  }
-
-  .hex-shape:hover {
-    fill: var(--glass-bg-hover);
-  }
-
-  .hex-shape-active {
-    fill: var(--glass-bg-hover);
-    stroke: var(--accent);
-  }
-
-  .hex-label {
-    position: relative;
-    z-index: 1;
+  .btn-label {
     font-family: var(--font-main);
-    font-size: 10px;
+    font-size: 12px;
     font-weight: 600;
     color: var(--text-primary);
-    pointer-events: none;
     white-space: nowrap;
-    text-overflow: ellipsis;
     overflow: hidden;
-    max-width: 48px;
-    text-align: center;
+    text-overflow: ellipsis;
     line-height: 1;
+    pointer-events: none;
+  }
+
+  .edit-input {
+    width: 100%;
+    min-width: 80px;
+    height: 24px;
+    padding: 0 4px;
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    background: var(--pad-btn-bg);
+    color: var(--text-primary);
+    font-family: var(--font-main);
+    font-size: 12px;
+    font-weight: 600;
+    outline: none;
+    box-sizing: border-box;
   }
 
   /* --- Fan-out --- */
 
   .fan-container {
     position: absolute;
-    top: 26px;
-    left: -70px;
+    top: 18px;
+    left: 20px;
     pointer-events: none;
   }
 
@@ -425,185 +369,15 @@
 
   .fan-circle:hover,
   .fan-circle-hovered {
-    fill: var(--glass-bg-hover);
+    fill: var(--glass-bg-hover, rgba(255, 255, 255, 0.15));
     stroke: var(--accent);
-  }
-
-  .fan-circle-new {
-    stroke: var(--accent);
-    stroke-dasharray: 4 2;
-  }
-
-  .fan-circle-more:hover,
-  .fan-circle-more.fan-circle-hovered {
-    stroke: var(--text-muted);
   }
 
   .fan-label {
     font-family: var(--font-main);
-    font-size: 8px;
+    font-size: 7px;
     font-weight: 500;
     fill: var(--text-primary);
-  }
-
-  /* --- Panel --- */
-
-  .panel {
-    position: absolute;
-    top: 60px;
-    left: 0;
-    width: 220px;
-    max-height: 300px;
-    display: flex;
-    flex-direction: column;
-    background: linear-gradient(
-      145deg,
-      rgba(255, 255, 255, 0.08) 0%,
-      transparent 50%,
-      rgba(0, 0, 0, 0.08) 100%
-    ), var(--glass-bg);
-    backdrop-filter: blur(20px);
-    border: 1px solid var(--glass-border);
-    border-radius: 10px;
-    box-shadow:
-      inset 0 1px 1px rgba(255, 255, 255, 0.1),
-      0 8px 32px rgba(0, 0, 0, 0.25),
-      0 2px 8px rgba(0, 0, 0, 0.15);
-    overflow: hidden;
-    animation: panel-appear 150ms ease forwards;
-  }
-
-  @keyframes panel-appear {
-    from {
-      opacity: 0;
-      transform: translateY(-4px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-
-  .panel-search {
-    padding: 8px 10px 6px;
-    border-bottom: 1px solid var(--glass-border);
-    flex-shrink: 0;
-  }
-
-  .search-input {
-    width: 100%;
-    height: 28px;
-    padding: 0 8px;
-    border: 1px solid var(--input-border);
-    border-radius: 6px;
-    background: var(--input-bg);
-    color: var(--text-primary);
-    font-family: var(--font-main);
-    font-size: 12px;
-    outline: none;
-    transition: border-color 0.15s;
-    box-sizing: border-box;
-  }
-
-  .search-input:focus {
-    border-color: var(--accent);
-  }
-
-  .search-input::placeholder {
-    color: var(--text-muted);
-  }
-
-  .panel-list {
-    flex: 1;
-    overflow-y: auto;
-    padding: 4px 0;
-    min-height: 0;
-  }
-
-  .panel-file {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    width: 100%;
-    padding: 6px 10px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    font-family: var(--font-main);
-    font-size: 12px;
-    color: var(--text-secondary);
-    text-align: left;
-    transition: background 0.1s;
-    gap: 4px;
-  }
-
-  .panel-file:hover,
-  .panel-file-hovered {
-    background: var(--pad-btn-bg-hover);
-  }
-
-  .panel-file-active {
-    background: var(--pad-btn-bg-active);
-    color: var(--text-primary);
-    font-weight: 600;
-  }
-
-  .panel-file-title {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .delete-btn {
-    display: none;
-    align-items: center;
-    justify-content: center;
-    width: 20px;
-    height: 20px;
-    border-radius: 4px;
-    border: none;
-    background: transparent;
-    color: var(--text-muted);
-    cursor: pointer;
-    padding: 0;
-    flex-shrink: 0;
-    transition: background 0.1s, color 0.1s;
-  }
-
-  .panel-file:hover .delete-btn,
-  .panel-file-hovered .delete-btn {
-    display: flex;
-  }
-
-  .delete-btn:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #ef4444;
-  }
-
-  .panel-empty {
-    padding: 12px 10px;
-    font-size: 12px;
-    color: var(--text-muted);
-    text-align: center;
-  }
-
-  .panel-new-btn {
-    padding: 8px 10px;
-    border: none;
-    border-top: 1px solid var(--glass-border);
-    background: none;
-    cursor: pointer;
-    font-family: var(--font-main);
-    font-size: 12px;
-    font-weight: 500;
-    color: var(--accent);
-    text-align: center;
-    transition: background 0.1s;
-    flex-shrink: 0;
-  }
-
-  .panel-new-btn:hover {
-    background: var(--pad-btn-bg-hover);
+    opacity: 0.7;
   }
 </style>

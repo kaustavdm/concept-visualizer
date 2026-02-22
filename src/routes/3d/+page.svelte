@@ -10,6 +10,7 @@
   import KeyboardHelp from '$lib/components/3d/KeyboardHelp.svelte';
   import LayersPanel from '$lib/components/3d/LayersPanel.svelte';
   import FileBrowserHex from '$lib/components/3d/FileBrowserHex.svelte';
+  import FileListModal from '$lib/components/3d/FileListModal.svelte';
   import { SCENE_BAY, APP_BAY, DEFAULT_SELECTIONS } from '$lib/components/3d/hexagon-dial-bays';
   import type { Layer3d, SerializableEntitySpec, File3d } from '$lib/3d/types';
   import { get } from 'svelte/store';
@@ -29,6 +30,7 @@
   let dialDismiss = $state(false);
   let keyActiveActions = $state(new Set<string>());
   let helpVisible = $state(false);
+  let fileListVisible = $state(false);
   let layersPanelVisible = $state(true);
   let storeFiles: File3d[] = $state([]);
   let storeActiveFileId: string | null = $state(null);
@@ -116,6 +118,12 @@
     };
   });
 
+  /** Extract plain layers from reactive state (avoids deep type inference with $state.snapshot) */
+  function plainLayers(): Layer3d[] {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return $state.snapshot(activeLayers as any) as Layer3d[];
+  }
+
   function syncFromStore() {
     const state = get(files3dStore);
     storeFiles = state.files;
@@ -129,43 +137,48 @@
   }
 
   function handleToggleVisibility(layerId: string) {
-    const updated = activeLayers.map(l =>
+    const plain = plainLayers();
+    const updated = plain.map(l =>
       l.id === layerId ? { ...l, visible: !l.visible } : l
     );
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
   }
 
   function handleUpdateText(layerId: string, text: string) {
-    const updated = activeLayers.map(l =>
+    const plain = plainLayers();
+    const updated = plain.map(l =>
       l.id === layerId ? { ...l, text, updatedAt: new Date() } : l
     );
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
   }
 
   function handleUpdateEntities(layerId: string, entities: SerializableEntitySpec[]) {
-    const updated = activeLayers.map(l =>
+    const plain = plainLayers();
+    const updated = plain.map(l =>
       l.id === layerId ? { ...l, entities, updatedAt: new Date() } : l
     );
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
   }
 
   function handleAddLayer() {
+    const plain = plainLayers();
     const now = new Date();
     const newLayer: Layer3d = {
       id: uuid(),
-      name: `Layer ${activeLayers.length + 1}`,
+      name: `Layer ${plain.length + 1}`,
       visible: true,
       text: '',
       entities: [],
-      order: activeLayers.length,
+      order: plain.length,
       createdAt: now,
       updatedAt: now,
     };
-    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, [...activeLayers, newLayer]);
+    if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, [...plain, newLayer]);
   }
 
   function handleRemoveLayer(layerId: string) {
-    const updated = activeLayers.filter(l => l.id !== layerId);
+    const plain = plainLayers();
+    const updated = plain.filter(l => l.id !== layerId);
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
   }
 
@@ -182,6 +195,15 @@
     await files3dStore.remove(id);
   }
 
+  async function handleCloneFile() {
+    if (!storeActiveFileId) return;
+    const activeFile = storeFiles.find(f => f.id === storeActiveFileId);
+    if (!activeFile) return;
+    const copy = await files3dStore.create(activeFile.title + ' (copy)');
+    const layers = plainLayers();
+    await files3dStore.updateLayers(copy.id, layers);
+  }
+
   function handleKeyDown(e: KeyboardEvent) {
     if (e.repeat) return;
 
@@ -191,10 +213,17 @@
       return;
     }
 
-    // When help is visible, only Escape closes it — block all other keys
+    // When help or file list is visible, only Escape closes it — block all other keys
     if (helpVisible) {
       if (e.key === 'Escape') {
         helpVisible = false;
+      }
+      return;
+    }
+
+    if (fileListVisible) {
+      if (e.key === 'Escape') {
+        fileListVisible = false;
       }
       return;
     }
@@ -376,6 +405,8 @@
       onSelectFile={handleSelectFile}
       onCreateFile={handleCreateFile}
       onDeleteFile={handleDeleteFile}
+      onCloneFile={handleCloneFile}
+      onShowFileList={() => { fileListVisible = true; }}
     />
 
     {#if layersPanelVisible}
@@ -446,6 +477,17 @@
       bays={dialBays}
       {activeBayIndex}
       onClose={() => { helpVisible = false; }}
+    />
+  {/if}
+
+  {#if fileListVisible}
+    <FileListModal
+      files={storeFiles}
+      activeFileId={storeActiveFileId}
+      onSelectFile={handleSelectFile}
+      onCreateFile={handleCreateFile}
+      onDeleteFile={handleDeleteFile}
+      onClose={() => { fileListVisible = false; }}
     />
   {/if}
 </div>
