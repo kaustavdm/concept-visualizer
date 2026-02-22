@@ -22,6 +22,9 @@
   import type { EntitySpec, Layer3d, Scene3d } from '$lib/3d/entity-spec';
   import { createObservationModeRegistry } from '$lib/3d/observation-modes/registry';
   import { graphMode } from '$lib/3d/observation-modes/graph';
+  import { createPipelineBridge } from '$lib/3d/pipeline-bridge';
+  import { createExtractorRegistry } from '$lib/extractors/registry';
+  import { generateEntities } from '$lib/llm/entity-gen';
   import { insertBetween } from '$lib/utils/fractional-index';
   import { get } from 'svelte/store';
   import { v4 as uuid } from 'uuid';
@@ -54,6 +57,10 @@
     bar: true,
   });
   let showOnboarding = $state(false);
+  let isProcessing = $state(false);
+  let pipelineError: string | null = $state(null);
+  let generateLoading = $state(false);
+  let pipelineErrorTimer: ReturnType<typeof setTimeout> | null = null;
 
   // Modal state derived from shallow routing
   let activeModal = $derived(($page as any).state?.modal as string | undefined);
@@ -67,6 +74,36 @@
   let activeFileName = $derived(
     storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
   );
+
+  // Pipeline bridge: connects LLM extraction to observation modes
+  let bridge: ReturnType<typeof createPipelineBridge> | null = null;
+
+  function initPipelineBridge() {
+    const settings = get(settingsStore);
+    const extractorRegistry = createExtractorRegistry({
+      endpoint: settings.llmEndpoint,
+      model: settings.llmModel,
+    });
+    bridge = createPipelineBridge(
+      {
+        extract: async (text) => {
+          const s = get(settingsStore);
+          extractorRegistry.updateLLMConfig({
+            endpoint: s.llmEndpoint,
+            model: s.llmModel,
+          });
+          return extractorRegistry.getEngine(s.extractionEngine).extract(text);
+        },
+      },
+      modeRegistry,
+    );
+  }
+
+  function showPipelineError(msg: string) {
+    pipelineError = msg;
+    if (pipelineErrorTimer) clearTimeout(pipelineErrorTimer);
+    pipelineErrorTimer = setTimeout(() => { pipelineError = null; }, 5000);
+  }
 
   function resolveSystemTheme(): 'light' | 'dark' {
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -107,6 +144,9 @@
   );
 
   onMount(() => {
+    // Initialize pipeline bridge for LLM extraction
+    initPipelineBridge();
+
     // Resolve initial theme: default to system detection
     const initialTheme = resolveSystemTheme();
     applyTheme(initialTheme);
@@ -262,37 +302,72 @@
   }
 
   async function handleChatSubmit(text: string) {
-    const mode = modeRegistry.getMode(activeMode);
-    if (!mode) return;
-
-    // Create a simple schema from the text for now
-    // Later, this will use the pipeline bridge with actual extraction
-    const schema = {
-      type: 'graph' as const,
-      title: text,
-      description: text,
-      nodes: [{ id: 'concept', label: text }],
-      edges: [],
-      metadata: { concepts: [text], relationships: [] },
-    };
-
-    const newLayers = mode.render(schema, { theme });
-
-    // Add layers to the scene with fractional positions
-    const plain = plainLayers();
-    let currentLayers = [...plain];
-    for (const layer of newLayers) {
-      const positions = currentLayers.map(l => l.position);
-      const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
-      layer.position = insertBetween(lastPos, undefined);
-      currentLayers = [...currentLayers, layer];
+    if (!bridge) {
+      showPipelineError('Pipeline not initialized. Check your settings.');
+      return;
     }
+    isProcessing = true;
+    pipelineError = null;
 
-    activeLayers = currentLayers;
+    try {
+      const messageId = uuid();
+      const newLayers = await bridge.process(text, activeMode, { theme });
 
-    // Persist to store
-    if (storeActiveFileId) {
-      await files3dStore.updateLayers(storeActiveFileId, plainLayers());
+      // Assign fractional positions and source provenance
+      const plain = plainLayers();
+      let currentLayers = [...plain];
+      const layerIds: string[] = [];
+
+      for (const layer of newLayers) {
+        const positions = currentLayers.map(l => l.position);
+        const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
+        layer.position = insertBetween(lastPos, undefined);
+        layer.source = { type: 'chat', messageId };
+        layerIds.push(layer.id);
+        currentLayers = [...currentLayers, layer];
+      }
+
+      activeLayers = currentLayers;
+
+      // Persist layers and chat message
+      if (storeActiveFileId) {
+        await files3dStore.updateLayers(storeActiveFileId, plainLayers());
+        await files3dStore.addMessage(storeActiveFileId, {
+          id: messageId,
+          text,
+          timestamp: new Date().toISOString(),
+          layerIds,
+          observationMode: activeMode,
+        });
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Extraction failed';
+      showPipelineError(msg);
+    } finally {
+      isProcessing = false;
+    }
+  }
+
+  async function handleGenerate(layerId: string, text: string) {
+    generateLoading = true;
+    try {
+      const settings = get(settingsStore);
+      const entities = await generateEntities(text, {
+        endpoint: settings.llmEndpoint,
+        model: settings.llmModel,
+      });
+      const plain = plainLayers();
+      const updated = plain.map(l =>
+        l.id === layerId
+          ? { ...l, entities, updatedAt: new Date().toISOString() }
+          : l
+      );
+      if (storeActiveFileId) await files3dStore.updateLayers(storeActiveFileId, updated);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Generation failed';
+      showPipelineError(msg);
+    } finally {
+      generateLoading = false;
     }
   }
 
@@ -561,6 +636,8 @@
         onUpdateEntities={handleUpdateEntities}
         onAddLayer={handleAddLayer}
         onRemoveLayer={handleRemoveLayer}
+        onGenerate={handleGenerate}
+        {generateLoading}
       />
     {/if}
 
@@ -594,7 +671,16 @@
     <ChatInput
       onSubmit={handleChatSubmit}
       {activeMode}
+      loading={isProcessing}
     />
+
+    <!-- Pipeline error banner -->
+    {#if pipelineError}
+      <div class="pipeline-error-banner">
+        <span>{pipelineError}</span>
+        <button onclick={() => { pipelineError = null; }} aria-label="Dismiss error">&times;</button>
+      </div>
+    {/if}
   {/if}
 
   <!-- Help button: top-right hexagonal "?" -->
@@ -732,6 +818,40 @@
   }
 
   .input-mode-hex:hover {
+    opacity: 1;
+  }
+
+  .pipeline-error-banner {
+    position: fixed;
+    bottom: 100px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 35;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    background: rgba(239, 68, 68, 0.9);
+    color: white;
+    font-size: 13px;
+    backdrop-filter: blur(8px);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+    max-width: 480px;
+  }
+
+  .pipeline-error-banner button {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 18px;
+    cursor: pointer;
+    padding: 0 2px;
+    opacity: 0.7;
+    transition: opacity 0.15s;
+  }
+
+  .pipeline-error-banner button:hover {
     opacity: 1;
   }
 </style>

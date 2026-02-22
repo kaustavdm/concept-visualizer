@@ -8,16 +8,17 @@
     onSubmit: (text: string) => void;
     activeMode?: string;
     disabled?: boolean;
+    loading?: boolean;
     placeholderText?: string;
   }
 
-  let { onSubmit, activeMode = 'graph', disabled = false, placeholderText = 'Describe a concept...' }: Props = $props();
+  let { onSubmit, activeMode = 'graph', disabled = false, loading = false, placeholderText = 'Describe a concept...' }: Props = $props();
 
   let containerEl: HTMLDivElement;
   let editorView: EditorView | undefined;
 
   function handleSubmit() {
-    if (!editorView || disabled) return;
+    if (!editorView || disabled || loading) return;
     const text = editorView.state.doc.toString().trim();
     if (!text) return;
     onSubmit(text);
@@ -101,16 +102,25 @@
 
     <button
       onclick={handleSubmit}
-      {disabled}
+      disabled={disabled || loading}
       class="shrink-0 px-3 py-1 rounded-lg text-sm font-medium transition-colors"
       style="
         background: var(--accent);
         color: white;
-        opacity: {disabled ? 0.5 : 1};
+        opacity: {disabled || loading ? 0.5 : 1};
       "
       title="Send (Enter)"
     >
-      Send
+      {#if loading}
+        <span class="inline-flex items-center gap-1">
+          <svg class="animate-spin h-3.5 w-3.5" viewBox="0 0 24 24" fill="none">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="31 31" stroke-linecap="round" />
+          </svg>
+          ...
+        </span>
+      {:else}
+        Send
+      {/if}
     </button>
   </div>
 </div>
