@@ -14,6 +14,8 @@ export interface MaterialSpec {
   specular?: [number, number, number];
   metalness?: number;
   gloss?: number;
+  opacity?: number;
+  blendType?: 'normal' | 'additive' | 'none';
 }
 
 /** A single entity in the scene */
@@ -43,6 +45,17 @@ export interface SceneEntitySpec {
   animate?: (entity: pc.Entity, ctx: AnimationContext) => void;
   /** Whether the camera can follow this entity (only entities with motion) */
   followable?: boolean;
+  /** Parent entity ID for hierarchical nesting */
+  parent?: string;
+  /** PlayCanvas-aligned component bag (forward-compatible with EntitySpec) */
+  components?: {
+    render?: { type: string; [key: string]: unknown };
+    light?: { type: string; [key: string]: unknown };
+  };
+  /** Human-readable label for concept visualization */
+  label?: string;
+  /** Semantic tags for filtering and grouping */
+  tags?: string[];
   /** Per-entity theme-responsive material overrides (serializable alternative to scene-level onThemeChange) */
   themeResponse?: {
     light?: Partial<MaterialSpec>;
