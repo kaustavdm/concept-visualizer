@@ -22,6 +22,7 @@
     onGenerate,
   }: Props = $props();
 
+  let panelExpanded = $state(true);
   let expandedLayerId: string | null = $state(null);
   let jsonErrors: Record<string, string> = $state({});
   let hoveredLayerId: string | null = $state(null);
@@ -77,7 +78,15 @@
 <div class="layers-panel" role="region" aria-label="Scene layers">
   <!-- Header -->
   <div class="panel-header">
-    <span class="panel-title">Layers</span>
+    <button
+      class="panel-toggle"
+      onclick={() => (panelExpanded = !panelExpanded)}
+      aria-expanded={panelExpanded}
+      aria-controls="layers-list-drawer"
+    >
+      <span class="chevron" class:chevron-collapsed={!panelExpanded}>&#x25BE;</span>
+      <span class="panel-title">Layers</span>
+    </button>
     <button
       class="add-btn"
       onclick={onAddLayer}
@@ -97,6 +106,11 @@
   </div>
 
   <!-- Layer list -->
+  <div
+    id="layers-list-drawer"
+    class="layer-list-drawer"
+    class:drawer-collapsed={!panelExpanded}
+  >
   <div class="layer-list">
     {#each sortedLayers as layer (layer.id)}
       {@const isExpanded = expandedLayerId === layer.id}
@@ -244,6 +258,7 @@
       </div>
     {/each}
   </div>
+  </div>
 </div>
 
 <style>
@@ -276,6 +291,27 @@
     flex-shrink: 0;
   }
 
+  .panel-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .chevron {
+    font-size: 12px;
+    color: var(--pad-icon-muted);
+    transition: transform 0.2s ease;
+    line-height: 1;
+  }
+
+  .chevron-collapsed {
+    transform: rotate(-90deg);
+  }
+
   .panel-title {
     font-size: 13px;
     font-weight: 600;
@@ -300,6 +336,16 @@
 
   .add-btn:hover {
     background: var(--pad-btn-bg-hover);
+  }
+
+  .layer-list-drawer {
+    max-height: calc(100vh - 260px);
+    overflow: hidden;
+    transition: max-height 0.2s ease;
+  }
+
+  .drawer-collapsed {
+    max-height: 0;
   }
 
   .layer-list {
