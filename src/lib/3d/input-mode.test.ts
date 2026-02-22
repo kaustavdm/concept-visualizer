@@ -123,7 +123,13 @@ describe('shouldAutoEnterInputMode', () => {
     expect(shouldAutoEnterInputMode(textarea)).toBe(true);
   });
 
-  it('returns false for other elements', () => {
+  it('returns true for contenteditable elements (e.g. CodeMirror)', () => {
+    const div = document.createElement('div');
+    div.setAttribute('contenteditable', 'true');
+    expect(shouldAutoEnterInputMode(div)).toBe(true);
+  });
+
+  it('returns false for non-contenteditable elements', () => {
     const div = document.createElement('div');
     const button = document.createElement('button');
     const span = document.createElement('span');

@@ -66,9 +66,15 @@ export function shouldProcessKeyUp(state: InputModeState): boolean {
 /**
  * Determine whether a focusin event on the given element should
  * auto-enter input mode.
+ *
+ * Matches native text inputs (INPUT, TEXTAREA) and contenteditable
+ * elements such as CodeMirror 6 editors (.cm-content).
  */
 export function shouldAutoEnterInputMode(target: EventTarget | null): boolean {
   if (!target || !(target instanceof HTMLElement)) return false;
   const tag = target.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA';
+  if (tag === 'INPUT' || tag === 'TEXTAREA') return true;
+  // CodeMirror 6 uses a contenteditable div with class "cm-content"
+  if (target.getAttribute('contenteditable') === 'true') return true;
+  return false;
 }
