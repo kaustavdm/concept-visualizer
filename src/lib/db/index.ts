@@ -1,8 +1,7 @@
 import Dexie, { type EntityTable, type Table } from 'dexie';
-import type { ConceptFile, AppSettings } from '$lib/types';
+import type { AppSettings } from '$lib/types';
 
 class ConceptDB extends Dexie {
-  files!: EntityTable<ConceptFile, 'id'>;
   settings!: EntityTable<AppSettings, 'id'>;
   // Use Table<any> to avoid circular KeyPaths inference from recursive
   // EntitySpec.children. The files3d store provides proper Scene3d typing.

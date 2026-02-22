@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import type { VisualizationNode, VisualizationSchema, ConceptFile, VisualizationType } from './types';
+import type { VisualizationNode, VisualizationSchema, VisualizationType } from './types';
 
 describe('extended types', () => {
   it('VisualizationType includes logicalflow and storyboard', () => {
@@ -30,13 +30,4 @@ describe('extended types', () => {
     expect(schema.renderOptions?.orientation).toBe('vertical');
   });
 
-  it('ConceptFile accepts cachedSchemas', () => {
-    const mockSchema = { type: 'graph' } as VisualizationSchema;
-    const file: Partial<ConceptFile> = {
-      cachedSchemas: {
-        logicalflow: { schema: mockSchema, contentHash: 'abc123' }
-      }
-    };
-    expect(file.cachedSchemas?.logicalflow?.contentHash).toBe('abc123');
-  });
 });

@@ -42,23 +42,6 @@ export interface VisualizationSchema {
   };
 }
 
-export interface ConceptFile {
-  id: string;
-  title: string;
-  createdAt: Date;
-  updatedAt: Date;
-  text: string;
-  visualization: VisualizationSchema | null;
-  settings: {
-    autoSend: boolean;
-    vizType?: VisualizationType;
-  };
-  cachedSchemas?: Partial<Record<VisualizationType, {
-    schema: VisualizationSchema;
-    contentHash: string;
-  }>>;
-}
-
 export interface AppSettings {
   id: string;
   llmEndpoint: string;
