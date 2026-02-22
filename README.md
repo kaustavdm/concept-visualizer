@@ -1,11 +1,14 @@
 # Concept Visualizer
 
-Turn written text into rich, story-driven concept visualizations using local LLMs or offline extraction engines.
+Turn written text into rich, story-driven 3D concept visualizations using local LLMs or offline extraction engines.
 
 ## Features
 
-- **3D concept visualization**: Immersive PlayCanvas-powered scene with orbit, fly, and follow camera modes
-- **Layer-based composition**: Build scenes from composable layers with per-entity animations
+- **3D concept visualization**: Immersive PlayCanvas-powered scenes with orbit, fly, and follow camera modes
+- **Chat-driven input**: Type concepts in a floating CodeMirror editor — extraction pipeline maps text to 3D layers
+- **Observation modes**: Pluggable renderers (graph, morality, etc.) that map extracted concepts to different 3D spatial metaphors
+- **Layer-based composition**: Build scenes from composable layers with per-entity animations and CRDT-ready fractional ordering
+- **Prefab system**: Named entity templates for consistent visual language across observation modes
 - **Scene management**: Create, clone, rename, and switch between concept scenes — persisted in IndexedDB via Dexie.js
 - **Hex dial controls**: Gamepad-inspired hexagonal dials for scene actions, camera modes, and theme switching
 - **Vim-like input mode**: Command mode for shortcuts, input mode for text fields — status bar shows active mode
@@ -13,11 +16,9 @@ Turn written text into rich, story-driven concept visualizations using local LLM
 - **Voice input**: Web Speech API for hands-free text entry
 - **Four extraction engines**: LLM (OpenAI-compatible), NLP (compromise.js), Keywords (RAKE), Semantic (TF.js + USE)
 
-> **Note:** The 2D D3.js visualizer is deprecated and available at `/2d` while the 3D experience reaches feature parity.
-
 ## Tech Stack
 
-SvelteKit 2 (Svelte 5) | TypeScript | Tailwind CSS 4 | PlayCanvas | D3.js | Dexie.js | Space Grotesk
+SvelteKit 2 (Svelte 5) | TypeScript | Tailwind CSS 4 | PlayCanvas | Dexie.js | CodeMirror 6 | Space Grotesk
 
 ## Getting Started
 
@@ -26,7 +27,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173` for the 3D visualizer. The deprecated 2D visualizer is at `http://localhost:5173/2d`.
+Open `http://localhost:5173` for the 3D visualizer.
 
 ### Keyboard Controls (3D)
 

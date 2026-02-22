@@ -82,11 +82,9 @@ Chat-driven concept visualization: user types in floating CodeMirror input → e
 
 ## Upcoming Work
 
-- DSL redesign implementation (see `docs/plans/2026-02-22-dsl-redesign-design.md`)
-- Observation mode renderers (graph, morality, epistemology, storyboard)
-- Chat input UI (CodeMirror floating input)
-- Pipeline integration into 3D homepage
-- Prefab registry and starter prefabs
+- Additional observation mode renderers (morality, epistemology, storyboard)
+- Starter prefab definitions for each observation mode
+- Environment presets per observation mode
 
 ## Testing
 
