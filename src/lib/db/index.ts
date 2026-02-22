@@ -1,11 +1,11 @@
 import Dexie, { type EntityTable } from 'dexie';
 import type { ConceptFile, AppSettings } from '$lib/types';
-import type { File3d } from '$lib/3d/types';
+import type { Scene3d } from '$lib/3d/entity-spec';
 
 class ConceptDB extends Dexie {
   files!: EntityTable<ConceptFile, 'id'>;
   settings!: EntityTable<AppSettings, 'id'>;
-  files3d!: EntityTable<File3d, 'id'>;
+  files3d!: EntityTable<Scene3d, 'id'>;
 
   constructor() {
     super('ConceptVisualizerDB');
@@ -24,6 +24,51 @@ class ConceptDB extends Dexie {
       files: 'id, title, updatedAt',
       settings: 'id',
       files3d: 'id, title, updatedAt'
+    });
+    // Version 4: Migrate File3d → Scene3d shape
+    this.version(4).stores({
+      files: 'id, title, updatedAt',
+      settings: 'id',
+      files3d: 'id, title, updatedAt'
+    }).upgrade(tx => {
+      return tx.table('files3d').toCollection().modify(file => {
+        // Migrate layers
+        file.layers = (file.layers || []).map((layer: any, i: number) => ({
+          ...layer,
+          position: String.fromCharCode('a'.charCodeAt(0) + i),
+          source: { type: 'manual' },
+          createdAt: layer.createdAt instanceof Date ? layer.createdAt.toISOString() : layer.createdAt,
+          updatedAt: layer.updatedAt instanceof Date ? layer.updatedAt.toISOString() : layer.updatedAt,
+          entities: (layer.entities || []).map((entity: any) => {
+            const { mesh, opacity, ...rest } = entity;
+            return {
+              ...rest,
+              components: {
+                render: typeof mesh === 'string'
+                  ? { type: mesh }
+                  : mesh?.type ? { type: mesh.type, geometry: mesh } : undefined,
+              },
+            };
+          }),
+        }));
+        // Remove order field
+        for (const layer of file.layers) {
+          delete (layer as any).order;
+          delete (layer as any).audioBlob;
+        }
+        // Migrate file-level fields
+        file.version = 1;
+        file.messages = [];
+        if (file.theme) {
+          file.environment = {
+            clearColor: file.theme === 'dark' ? [0.01, 0.02, 0.06] : [0.92, 0.93, 0.95],
+            ambientColor: file.theme === 'dark' ? [0.08, 0.08, 0.12] : [0.5, 0.5, 0.55],
+          };
+          delete (file as any).theme;
+        }
+        file.createdAt = file.createdAt instanceof Date ? file.createdAt.toISOString() : file.createdAt;
+        file.updatedAt = file.updatedAt instanceof Date ? file.updatedAt.toISOString() : file.updatedAt;
+      });
     });
   }
 }
