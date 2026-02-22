@@ -41,6 +41,30 @@ describe('parseVisualizationResponse', () => {
     expect(() => parseVisualizationResponse('{"type":"graph"}')).toThrow();
   });
 
+  it('accepts logicalflow type', () => {
+    const raw = JSON.stringify({
+      type: 'logicalflow',
+      title: 'Test',
+      description: 'Test',
+      nodes: [{ id: 'a', label: 'A' }],
+      edges: [],
+      metadata: { concepts: [], relationships: [] },
+    });
+    expect(() => parseVisualizationResponse(raw)).not.toThrow();
+  });
+
+  it('accepts storyboard type', () => {
+    const raw = JSON.stringify({
+      type: 'storyboard',
+      title: 'Test',
+      description: 'Test',
+      nodes: [{ id: 'a', label: 'A' }],
+      edges: [],
+      metadata: { concepts: [], relationships: [] },
+    });
+    expect(() => parseVisualizationResponse(raw)).not.toThrow();
+  });
+
   it('should throw when edge references invalid node', () => {
     const bad = JSON.stringify({
       type: 'graph',

@@ -1,6 +1,6 @@
 import type { VisualizationSchema } from '$lib/types';
 
-const VALID_TYPES = ['graph', 'tree', 'flowchart', 'hierarchy'];
+const VALID_TYPES = ['graph', 'tree', 'flowchart', 'hierarchy', 'logicalflow', 'storyboard'];
 
 export function parseVisualizationResponse(raw: string): VisualizationSchema {
   // Strip markdown code fences if present
