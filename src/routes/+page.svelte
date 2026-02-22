@@ -12,9 +12,13 @@
   import FileBrowserHex from '$lib/components/3d/FileBrowserHex.svelte';
   import FileListModal from '$lib/components/3d/FileListModal.svelte';
   import StatusBar from '$lib/components/3d/StatusBar.svelte';
+  import ChatInput from '$lib/components/3d/ChatInput.svelte';
   import { routeKeyDown, shouldProcessKeyUp, shouldAutoEnterInputMode } from '$lib/3d/input-mode';
   import { SCENE_BAY, APP_BAY, DEFAULT_SELECTIONS } from '$lib/components/3d/hexagon-dial-bays';
-  import type { Layer3d, SerializableEntitySpec, File3d } from '$lib/3d/types';
+  import type { EntitySpec, Layer3d, Scene3d } from '$lib/3d/entity-spec';
+  import { createObservationModeRegistry } from '$lib/3d/observation-modes/registry';
+  import { graphMode } from '$lib/3d/observation-modes/graph';
+  import { insertBetween } from '$lib/utils/fractional-index';
   import { get } from 'svelte/store';
   import { v4 as uuid } from 'uuid';
 
@@ -34,10 +38,15 @@
   let helpVisible = $state(false);
   let fileListVisible = $state(false);
   let layersPanelVisible = $state(true);
-  let storeFiles: File3d[] = $state([]);
+  let storeFiles: Scene3d[] = $state([]);
   let storeActiveFileId: string | null = $state(null);
   let activeLayers: Layer3d[] = $state([]);
   let inputMode = $state(false);
+
+  // Observation mode registry
+  const modeRegistry = createObservationModeRegistry();
+  modeRegistry.register(graphMode);
+  let activeMode = $state('graph');
   let activeFileName = $derived(
     storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
   );
@@ -153,29 +162,33 @@
   function handleUpdateText(layerId: string, text: string) {
     const plain = plainLayers();
     const updated = plain.map(l =>
-      l.id === layerId ? { ...l, text, updatedAt: new Date() } : l
+      l.id === layerId ? { ...l, text, updatedAt: new Date().toISOString() } : l
     );
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
   }
 
-  function handleUpdateEntities(layerId: string, entities: SerializableEntitySpec[]) {
+  function handleUpdateEntities(layerId: string, entities: EntitySpec[]) {
     const plain = plainLayers();
     const updated = plain.map(l =>
-      l.id === layerId ? { ...l, entities, updatedAt: new Date() } : l
+      l.id === layerId ? { ...l, entities, updatedAt: new Date().toISOString() } : l
     );
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
   }
 
   function handleAddLayer() {
     const plain = plainLayers();
-    const now = new Date();
+    const positions = plain.map(l => l.position);
+    const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
+    const newPosition = insertBetween(lastPos, undefined);
+    const now = new Date().toISOString();
     const newLayer: Layer3d = {
       id: uuid(),
       name: `Layer ${plain.length + 1}`,
       visible: true,
       text: '',
       entities: [],
-      order: plain.length,
+      position: newPosition,
+      source: { type: 'manual' },
       createdAt: now,
       updatedAt: now,
     };
@@ -186,6 +199,41 @@
     const plain = plainLayers();
     const updated = plain.filter(l => l.id !== layerId);
     if (storeActiveFileId) files3dStore.updateLayers(storeActiveFileId, updated);
+  }
+
+  async function handleChatSubmit(text: string) {
+    const mode = modeRegistry.getMode(activeMode);
+    if (!mode) return;
+
+    // Create a simple schema from the text for now
+    // Later, this will use the pipeline bridge with actual extraction
+    const schema = {
+      type: 'graph' as const,
+      title: text,
+      description: text,
+      nodes: [{ id: 'concept', label: text }],
+      edges: [],
+      metadata: { concepts: [text], relationships: [] },
+    };
+
+    const newLayers = mode.render(schema, { theme });
+
+    // Add layers to the scene with fractional positions
+    const plain = plainLayers();
+    let currentLayers = [...plain];
+    for (const layer of newLayers) {
+      const positions = currentLayers.map(l => l.position);
+      const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
+      layer.position = insertBetween(lastPos, undefined);
+      currentLayers = [...currentLayers, layer];
+    }
+
+    activeLayers = currentLayers;
+
+    // Persist to store
+    if (storeActiveFileId) {
+      await files3dStore.updateLayers(storeActiveFileId, plainLayers());
+    }
   }
 
   // File browser callbacks
@@ -427,6 +475,9 @@
     {#if layersPanelVisible}
       <LayersPanel
         layers={activeLayers}
+        observationModes={modeRegistry.listModes().map(m => m.name)}
+        activeObservationMode={activeMode}
+        onSelectObservationMode={(mode) => activeMode = mode}
         onToggleVisibility={handleToggleVisibility}
         onUpdateText={handleUpdateText}
         onUpdateEntities={handleUpdateEntities}
@@ -459,6 +510,12 @@
       activateCenter={dialActivateCenter}
       activateOptionIndex={dialActivateOption}
       dismiss={dialDismiss}
+    />
+
+    <!-- Chat input: centered above status bar -->
+    <ChatInput
+      onSubmit={handleChatSubmit}
+      {activeMode}
     />
   {/if}
 

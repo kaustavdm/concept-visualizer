@@ -1,9 +1,9 @@
 <script lang="ts">
-  import type { File3d } from '$lib/3d/types';
+  import type { Scene3d } from '$lib/3d/entity-spec';
   import { files3dStore } from '$lib/stores/files3d';
 
   interface Props {
-    files: File3d[];
+    files: Scene3d[];
     activeFileId: string | null;
   }
 
