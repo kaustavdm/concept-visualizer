@@ -2,7 +2,7 @@
 
 ## Architecture
 
-SvelteKit 2 SPA (adapter-static, SSR disabled) with Svelte 5 runes ($props, $state, $derived, $effect). Client-direct LLM calls (no server proxy — browser fetches OpenAI-compatible endpoint directly).
+SvelteKit 2 SPA (adapter-static, SSR disabled) with Svelte 5 runes ($props, $state, $derived, $effect). Client-direct LLM calls (no server proxy — browser fetches OpenAI-compatible endpoint directly). Primary experience is the 3D PlayCanvas visualizer at `/`. The 2D D3.js visualizer is deprecated at `/2d`.
 
 ## Key Patterns
 
@@ -39,9 +39,11 @@ src/
   app.css              # Tailwind + CSS custom properties
   app.html             # Space Grotesk font link
   routes/
-    +page.svelte       # Main app wiring
-    +layout.svelte     # Global CSS
+    +page.svelte       # 3D visualizer (homepage)
+    +layout.svelte     # Global CSS + theme sync
     +layout.ts         # SPA mode (ssr=false)
+    2d/+page.svelte    # 2D visualizer (deprecated)
+    3d/+page.ts        # Redirect → /
     settings/+page.svelte
   lib/
     types.ts           # VisualizationSchema, ConceptFile, AppSettings
@@ -86,6 +88,11 @@ The central data contract is `VisualizationSchema` in `src/lib/types.ts`. All ex
 - **Editor pane**: Visualize, cycle type, export, auto-send — all editor actions live here
 - **Keyboard shortcuts**: Enter=visualize, Tab=cycle type, P=export, Q=auto-send (unchanged)
 - Right HUD cluster removed to free canvas for tooltip overlays
+
+## Upcoming Work
+
+- Integration of extraction pipeline (extractors, LLM client) into 3D visualizer
+- Repurposing 2D components (renderers, editor pane) for 3D context
 
 ## Testing
 

@@ -4,19 +4,20 @@ Turn written text into rich, story-driven concept visualizations using local LLM
 
 ## Features
 
-- **Four visualization types**: Graph, Tree, Flowchart, Hierarchy — each tells a different story about the same concepts
-- **Storytelling visual encoding**: Node size = importance (weight), color family = theme cluster, glow rings for central/outcome nodes, curved bezier edges with strength thickness
-- **Hover tooltip**: Glass card shows concept description, narrative role badge, and up to 5 connected nodes on hover
-- **Neighbourhood highlight**: Click any node to dim all non-neighbours to 12% opacity; click background to restore
-- **Four extraction engines**: LLM (OpenAI-compatible), NLP (compromise.js), Keywords (RAKE), Semantic (TF.js + Universal Sentence Encoder)
-- **Gamepad-inspired controls**: WASD pan, Arrow key node navigation, Z/X zoom, Enter to visualize, Tab to cycle viz types — every key lights up its on-screen button
-- **Adaptive theming**: Accent colors shift with visualization type (blue/emerald/amber/violet), dark mode support
-- **File management**: Create, rename, delete concept files — persisted in IndexedDB via Dexie.js
-- **Export**: PDF and Markdown+images (PNG) export
+- **3D concept visualization**: Immersive PlayCanvas-powered scene with orbit, fly, and follow camera modes
+- **Layer-based composition**: Build scenes from composable layers with per-entity animations
+- **Scene management**: Create, clone, rename, and switch between concept scenes — persisted in IndexedDB via Dexie.js
+- **Hex dial controls**: Gamepad-inspired hexagonal dials for scene actions, camera modes, and theme switching
+- **Vim-like input mode**: Command mode for shortcuts, input mode for text fields — status bar shows active mode
+- **Adaptive theming**: System/light/dark theme cycling with glass-morphism UI
+- **Voice input**: Web Speech API for hands-free text entry
+- **Four extraction engines**: LLM (OpenAI-compatible), NLP (compromise.js), Keywords (RAKE), Semantic (TF.js + USE)
+
+> **Note:** The 2D D3.js visualizer is deprecated and available at `/2d` while the 3D experience reaches feature parity.
 
 ## Tech Stack
 
-SvelteKit 2 (Svelte 5) | TypeScript | Tailwind CSS 4 | D3.js | Dexie.js | Space Grotesk
+SvelteKit 2 (Svelte 5) | TypeScript | Tailwind CSS 4 | PlayCanvas | D3.js | Dexie.js | Space Grotesk
 
 ## Getting Started
 
@@ -25,7 +26,19 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:5173`. Write or paste text in the editor pane, press Enter (or click Visualize) to generate a visualization.
+Open `http://localhost:5173` for the 3D visualizer. The deprecated 2D visualizer is at `http://localhost:5173/2d`.
+
+### Keyboard Controls (3D)
+
+| Key | Action | Key | Action |
+|-----|--------|-----|--------|
+| W/A/S/D | Pan camera | ? | Toggle keyboard help |
+| Z/X | Zoom in/out | F | Toggle fullscreen |
+| C | Look at origin | H | Toggle controls |
+| Shift (hold) | Toggle orbit/fly | I | Enter input mode |
+| Space | Cycle follow target | Esc | Close / exit input mode |
+| O/;/./,/M/K | Hex dial faces | L | Switch hex dial bay |
+| 1-9 | Select fan-out option | | |
 
 ### Extraction Engines
 
@@ -36,17 +49,7 @@ Open `http://localhost:5173`. Write or paste text in the editor pane, press Ente
 | Keywords | Nothing (offline) | <10ms | Basic co-occurrence |
 | Semantic | ~30MB model download (cached) | 2-5s | Good semantic understanding |
 
-Configure the engine and LLM endpoint in **Settings** (sidebar bottom). Fast-switch with **Shift+Tab**.
-
-### Keyboard Controls
-
-| Key | Action | Key | Action |
-|-----|--------|-----|--------|
-| W/A/S/D | Pan canvas | Enter | Visualize |
-| Z/X | Zoom in/out | Tab | Cycle viz type |
-| Space | Fit to screen | Q | Toggle auto-send |
-| Arrows | Navigate nodes | Shift+Tab | Cycle engine |
-| Esc | Deselect | | |
+Configure the LLM endpoint and model in **Settings**.
 
 ## Development
 
