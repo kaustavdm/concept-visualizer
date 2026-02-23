@@ -8,7 +8,7 @@ The entity DSL defines 3D scenes as composable layers of entities. It aligns wit
 Scene3d
   └── Layer3d[]          ← ordered by fractional index
         └── EntitySpec[]  ← nested via children
-              ├── components: { render?, light? }
+              ├── components: { render?, light?, text? }
               ├── material
               ├── animate (AnimationDSL)
               └── children: EntitySpec[]
@@ -30,6 +30,7 @@ interface EntitySpec {
   components: {
     render?: RenderComponentSpec;
     light?: LightComponentSpec;
+    text?: TextComponentSpec;
   };
 
   material?: MaterialSpec;
@@ -91,9 +92,28 @@ interface LightComponentSpec {
 }
 ```
 
+### Text Component
+
+Canvas-to-texture text rendering. Entities with only a `text` component (no `render`) become billboard planes. Entities with both `render` and `text` get text applied as an emissive texture overlay.
+
+```typescript
+interface TextComponentSpec {
+  text: string;
+  fontSize?: number;                     // default 24px
+  color?: [number, number, number];      // 0-1 RGB
+  background?: [number, number, number]; // optional background fill
+  backgroundOpacity?: number;
+  align?: 'center' | 'left' | 'right';
+  billboard?: boolean;                   // face camera each frame
+  maxWidth?: number;                     // word-wrap width in pixels
+}
+```
+
+Text canvases are power-of-2 sized for WebGL compatibility. Word wrapping handles explicit `\n` newlines and splits on whitespace.
+
 ### Material
 
-Maps to PlayCanvas `pc.StandardMaterial`. Colors are `[r, g, b]` tuples (0-1 range for scene definitions, 0-255 for observation mode output).
+Maps to PlayCanvas `pc.StandardMaterial`. Colors are `[r, g, b]` tuples (0-1 range for scene definitions, 0-255 for observation mode output — the compositor auto-normalizes).
 
 ```typescript
 interface MaterialSpec {
@@ -117,11 +137,11 @@ Declarative animation primitives that get resolved to per-frame callbacks by the
 | Type | Key Properties | Description |
 |------|---------------|-------------|
 | `orbit` | `radius`, `speed`, `center?`, `tilt?`, `bob?` | Circular orbit around a point or entity |
-| `rotate` | `axis` (`x`/`y`/`z`), `speed` (rev/s) | Continuous rotation |
-| `bob` | `amplitude`, `speed` | Vertical oscillation |
-| `scale` | `min`, `max`, `speed` | Pulsing scale |
-| `lookat` | `target` (entity ID) | Face another entity |
-| `path` | `points`, `speed`, `loop` | Move along waypoints |
+| `rotate` | `axis` (`x`/`y`/`z`), `speed` (rev/s) | Continuous rotation preserving initial rotation |
+| `bob` | `amplitude`, `speed` | Y-axis oscillation preserving X/Z position |
+| `scale` | `min`, `max`, `speed` | Uniform pulsing scale |
+| `lookat` | `target` (entity ID) | Face another entity each frame |
+| `path` | `points`, `speed`, `loop` | Linear interpolation along waypoints |
 
 ### Composition
 
@@ -203,6 +223,7 @@ interface Scene3d {
   layers: Layer3d[];
   version: number;                       // schema version
   messages?: ChatMessage[];              // chat history
+  snapshots?: VersionSnapshot[];         // undo/restore points
 
   environment?: {
     ambientColor?: [number, number, number];
@@ -218,6 +239,36 @@ interface Scene3d {
 }
 ```
 
+### ChatMessage
+
+Each chat submission is stored with its results and the cached extraction schema.
+
+```typescript
+interface ChatMessage {
+  id: string;
+  text: string;
+  timestamp: string;                     // ISO 8601
+  layerIds: string[];                    // layers produced by this message
+  observationMode?: string;              // mode active when sent
+  schema?: VisualizationSchema;          // cached extraction result
+}
+```
+
+### VersionSnapshot
+
+Point-in-time scene state for undo/restore. Tier-granular: each pipeline tier can produce a snapshot.
+
+```typescript
+interface VersionSnapshot {
+  version: number;
+  timestamp: string;
+  layers: Layer3d[];
+  description: string;
+  tier?: number;                         // which pipeline tier produced this
+  messageId?: string;                    // originating chat message
+}
+```
+
 ## Prefab System
 
 Named entity templates resolved at composition time. Prefabs define defaults that entity overrides can selectively replace.
@@ -227,7 +278,7 @@ interface PrefabDefinition {
   id: string;
   description: string;
   template: Omit<EntitySpec, 'id'>;      // default properties
-  slots: string[];                       // customizable fields
+  slots: string[];                       // customizable fields (documentation only)
 }
 ```
 
@@ -236,53 +287,92 @@ Usage in an entity:
 ```typescript
 const entity: EntitySpec = {
   id: 'my-sphere',
-  prefab: 'concept-node',                // resolved from registry
+  prefab: 'morality:agent',              // resolved from registry
   material: { diffuse: [1, 0, 0] },      // overrides prefab default
 };
 ```
 
-Resolution: `resolvePrefab(entity, registry)` deep-merges the prefab template under the entity's own properties. Entity fields always win. The `prefab` key is stripped from the result.
+Resolution: `resolvePrefab(entity, registry)` deep-merges the prefab template under the entity's own properties. Entity fields always win. Arrays replace (not concatenate). Children pass through from the entity, not the template. The `prefab` key is stripped from the result.
+
+Each observation mode declares its own `prefabs: PrefabDefinition[]` which are registered in the prefab registry at mode activation time.
 
 ## Observation Modes
 
-Observation modes are pluggable renderers that convert extracted concepts (`VisualizationSchema`) into `Layer3d[]` arrays. Each mode provides a different spatial metaphor.
+Observation modes are pluggable renderers that convert extracted concepts (`VisualizationSchema`) into `Layer3d[]` arrays. Each mode provides a different spatial metaphor, role vocabulary, and prefab set.
 
 ```typescript
+interface ModeRole {
+  id: string;
+  label: string;
+  description: string;
+  prefab: string;                        // prefab ID for this role
+  relevance: 'high' | 'medium' | 'low';
+}
+
 interface ObservationMode {
   id: string;
   name: string;
   description: string;
-  prefabs?: PrefabDefinition[];
+  roles: ModeRole[];                     // role vocabulary for LLM classification
+  prefabs: PrefabDefinition[];           // mode-specific prefab templates
+  storyFocus: string;                    // LLM prompt guidance for this mode
   render(schema: VisualizationSchema, options?: RenderOptions): Layer3d[];
-  systemPromptOverride?: string;         // custom LLM prompt for this mode
 }
 ```
 
-### Built-in: Graph Mode
+### Built-in Modes
 
-Arranges concepts as spheres in a circle on the XZ plane with box connections between them. Produces three layers: Ground, Concepts, Connections.
+| Mode | ID | Spatial Metaphor | Roles | Layers |
+|------|----|-----------------|-------|--------|
+| **Graph** | `graph` | Circle layout on XZ plane | core, supporting, peripheral, emergent | Ground, Concepts, Connections |
+| **Morality** | `morality` | Tension-web with agents/affected on opposing sides | agent, affected, duty, value, consequence, tension | Environment, Concepts, Connections |
+| **Ontology** | `ontology` | Y-stratified categories with instances and properties | category, instance, property, process | Environment, Concepts, Connections |
+| **Epistemology** | `epistemology` | Concentric rings — certain at center, uncertain at periphery | claim, evidence, means, assumption, limit | Environment, Concepts, Connections |
+| **Causality** | `causality` | Directed Z-flow from causes to effects | cause, effect, mechanism, purpose, condition | Environment, Concepts, Connections |
+| **Debate** | `debate` | Opposing poles (left/right) with resolution at center | position, counter, resolution, tension, ground | Environment, Concepts, Connections |
+| **Appearance** | `appearance` | Two-plane parallax — surface above, depth below | surface, depth, lens, veil, marker | Environment, Concepts, Connections |
+
+Modes are registered in `ObservationModeRegistry` and selected via the hex dial's Observe face.
 
 ### Creating a New Mode
 
 1. Create `src/lib/3d/observation-modes/<name>.ts`
-2. Export an `ObservationMode` object
-3. Register it in the mode registry
+2. Define roles, prefabs, storyFocus, and a `render()` function
+3. Register in `+page.svelte`
 
 ```typescript
 export const myMode: ObservationMode = {
   id: 'my-mode',
   name: 'My Mode',
   description: 'Custom visualization',
+  roles: [
+    { id: 'primary', label: 'Primary', description: '...', prefab: 'my-mode:primary', relevance: 'high' },
+  ],
+  prefabs: [{
+    id: 'my-mode:primary',
+    description: 'Primary concept node',
+    template: {
+      components: { render: { type: 'sphere' } },
+      material: { diffuse: [0.5, 0.5, 0.8] },
+    },
+    slots: ['material', 'scale'],
+  }],
+  storyFocus: 'Classify each concept by...',
   render(schema, options) {
     const entities: EntitySpec[] = schema.nodes.map(node => ({
       id: node.id,
-      components: { render: { type: 'sphere' } },
+      prefab: `my-mode:${node.modeRole ?? 'primary'}`,
+      components: {},
       position: [/* layout logic */],
-      material: { diffuse: [0.5, 0.5, 0.8] },
       label: node.label,
+      children: [{
+        id: `${node.id}-label`,
+        components: { text: { text: node.label, billboard: true } },
+        position: [0, 1.2, 0],
+      }],
     }));
     return [{
-      id: uuid(),
+      id: crypto.randomUUID(),
       name: 'My Layer',
       visible: true,
       entities,
@@ -299,18 +389,60 @@ export const myMode: ObservationMode = {
 
 ## Pipeline
 
-The full data flow from user input to rendered scene:
+User text flows through a three-tier progressive extraction pipeline before being rendered by the active observation mode.
 
 ```
 User text (ChatInput)
-  → Extraction engine (LLM / NLP / Keywords / Semantic)
-    → VisualizationSchema { nodes, edges, title, type }
-      → Observation mode .render()
-        → Layer3d[]
-          → composeLayers()
-            → SceneContent { entities, onThemeChange }
-              → PlayCanvas engine renders
+  → Tier 1: JS extraction (RAKE + NLP + TF-IDF)
+    → VisualizationSchema (basic nodes + edges)
+      → Observation mode .render() → Layer3d[] [yield]
+  → Tier 2: TF.js refinement (USE embeddings + K-means clustering)
+    → VisualizationSchema (enriched themes + weights)
+      → Observation mode .render() → Layer3d[] [yield]
+  → Tier 3: LLM micro-prompts (narrative roles, descriptions, story focus)
+    → VisualizationSchema (full enrichment)
+      → Observation mode .render() → Layer3d[] [yield]
+        → composeLayers()
+          → SceneContent { entities, onThemeChange }
+            → PlayCanvas engine renders
 ```
+
+### Tiered Runner
+
+The pipeline is an `AsyncGenerator` that yields progressively enriched results. Each tier is optional and can be skipped via settings.
+
+```typescript
+interface TieredRunner {
+  run(text: string, onStage?: (stage: PipelineStage) => void): AsyncGenerator<TierResult>;
+  abort(): void;
+}
+```
+
+The **PipelineBridge** connects the tiered runner to observation modes:
+
+```typescript
+interface TieredBridgeResult {
+  tier: number;
+  layers: Layer3d[];
+  schema: VisualizationSchema;
+}
+```
+
+### Pipeline Stages
+
+Reported via `onStage` callback and displayed in the StatusBar:
+
+| Stage | Description |
+|-------|-------------|
+| `tier1-extracting` | JS keyword/NLP extraction running |
+| `tier1-complete` | Tier 1 results available |
+| `tier2-embedding` | TF.js USE embedding + clustering |
+| `tier2-complete` | Tier 2 results available |
+| `tier3-enriching` | LLM micro-prompts running |
+| `tier3-complete` | Tier 3 results available |
+| `complete` | All tiers finished |
+
+Each tier yields a `TierResult { tier: number, schema: VisualizationSchema }`. The bridge re-renders through the active observation mode at each tier, so the scene progressively enriches as tiers complete.
 
 ## Example: Solar Scene
 
@@ -365,12 +497,16 @@ Three layers compose the scene: Ground (position `'a'`), Structures (position `'
 
 | File | Purpose |
 |------|---------|
-| `src/lib/3d/entity-spec.ts` | EntitySpec, Layer3d, Scene3d type definitions |
+| `src/lib/3d/entity-spec.ts` | EntitySpec, Layer3d, Scene3d, ChatMessage, VersionSnapshot types |
 | `src/lib/3d/animation-dsl.ts` | Animation types and resolver |
 | `src/lib/3d/compositor.ts` | `composeLayers()` — merges layers into SceneContent |
 | `src/lib/3d/prefabs.ts` | Prefab registry and resolver |
+| `src/lib/3d/text-renderer.ts` | Canvas-to-texture text rendering utility |
 | `src/lib/3d/scene-content.types.ts` | Runtime types (SceneContent, SceneEntitySpec) |
-| `src/lib/3d/createScene.ts` | PlayCanvas engine setup |
-| `src/lib/3d/observation-modes/` | Observation mode interface, registry, and built-in modes |
-| `src/lib/3d/pipeline-bridge.ts` | Connects extraction pipeline to observation modes |
+| `src/lib/3d/createScene.ts` | PlayCanvas engine setup, entity building, billboard system |
+| `src/lib/3d/observation-modes/` | ObservationMode interface, registry, and 7 built-in modes |
+| `src/lib/3d/pipeline-bridge.ts` | Connects tiered extraction pipeline to observation modes |
+| `src/lib/pipeline/runner.ts` | `createTieredRunner()` — AsyncGenerator pipeline orchestrator |
+| `src/lib/pipeline/tiers/` | Tier implementations: tier1-extract, tier2-refine, tier3-enrich |
+| `src/lib/pipeline/store.ts` | Pipeline stage store for StatusBar display |
 | `src/lib/utils/fractional-index.ts` | CRDT-safe layer ordering |
