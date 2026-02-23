@@ -6,6 +6,7 @@ import type {
   AnimationContext,
 } from './scene-content.types';
 import { createTextCanvas } from './text-renderer';
+import type { TextComponentSpec } from './entity-spec';
 
 export type CameraMode = 'orbit' | 'fly' | 'follow';
 
@@ -164,9 +165,6 @@ function buildGridFloor(
 
 // --- Text rendering helpers ---
 
-/** Set of entity IDs that should billboard (face the camera each frame). */
-const billboardIds = new Set<string>();
-
 /**
  * Create a pc.Texture from the text canvas.
  * Uses emissiveMap so the text is visible regardless of lighting.
@@ -175,7 +173,7 @@ function buildTextTexture(
   app: pc.Application,
   textSpec: { text: string; [key: string]: unknown },
 ): pc.Texture {
-  const canvas = createTextCanvas(textSpec as any);
+  const canvas = createTextCanvas(textSpec as TextComponentSpec);
   const texture = new pc.Texture(app.graphicsDevice, {
     width: canvas.width,
     height: canvas.height,
@@ -192,12 +190,13 @@ function buildTextTexture(
 
 /**
  * Build a text-only billboard entity: a plane with the text canvas as emissiveMap.
- * If `billboard: true` in the text spec, the entity is registered for per-frame
- * camera facing in the update loop.
+ * Uses a parent/child structure: parent handles position + billboard rotation,
+ * child plane is rotated 90° so it faces forward correctly.
  */
 function buildTextBillboard(
   app: pc.Application,
   spec: SceneEntitySpec,
+  billboardIds: Set<string>,
 ): pc.Entity {
   const textSpec = spec.components!.text!;
   const texture = buildTextTexture(app, textSpec);
@@ -227,17 +226,21 @@ function buildTextBillboard(
 
   mat.update();
 
+  // Parent entity owns position and billboard rotation
   const entity = new pc.Entity(spec.id);
-  entity.addComponent('render', { type: 'plane' });
-  entity.render!.meshInstances[0].material = mat;
 
-  // Rotate plane to face forward (planes are created facing up by default)
-  entity.setLocalEulerAngles(90, 0, 0);
+  // Child plane is tilted 90° so it faces forward (planes default to facing up)
+  const plane = new pc.Entity(`${spec.id}__plane`);
+  plane.addComponent('render', { type: 'plane' });
+  plane.render!.meshInstances[0].material = mat;
+  plane.setLocalEulerAngles(90, 0, 0);
+  entity.addChild(plane);
 
   if (spec.position) entity.setPosition(...spec.position);
+  if (spec.rotation) entity.setLocalEulerAngles(...spec.rotation);
   if (spec.scale) entity.setLocalScale(...spec.scale);
 
-  // Register for billboard behavior
+  // Register for billboard behavior (lookAt on the parent; child stays tilted)
   if (textSpec.billboard) {
     billboardIds.add(spec.id);
   }
@@ -246,80 +249,31 @@ function buildTextBillboard(
 }
 
 /**
- * Build a regular render entity with a text canvas applied as emissiveMap.
- * The text is "inscribed" on the entity's surface.
+ * Apply a text canvas as emissiveMap to an already-built entity's material.
  */
-function buildTexturedEntity(
+function applyTextOverlay(
   app: pc.Application,
-  spec: SceneEntitySpec,
-): pc.Entity {
-  const textSpec = spec.components!.text!;
+  entity: pc.Entity,
+  mat: pc.StandardMaterial,
+  textSpec: { text: string; [key: string]: unknown },
+  hasEmissive: boolean,
+): void {
   const texture = buildTextTexture(app, textSpec);
-
-  const mat = buildMaterial(spec.material);
   mat.emissiveMap = texture;
-  // Ensure emissive is white so the map colors come through
-  if (!spec.material.emissive) {
+  if (!hasEmissive) {
     mat.emissive = new pc.Color(1, 1, 1);
   }
   mat.update();
-
-  const entity = new pc.Entity(spec.id);
-
-  if (typeof spec.mesh === 'string') {
-    entity.addComponent('render', { type: spec.mesh });
-    entity.render!.meshInstances[0].material = mat;
-  } else {
-    const geom = new pc.ConeGeometry({
-      baseRadius: spec.mesh.baseRadius,
-      peakRadius: spec.mesh.peakRadius,
-      height: spec.mesh.height,
-      heightSegments: spec.mesh.heightSegments,
-      capSegments: spec.mesh.capSegments,
-    });
-    const mesh = pc.Mesh.fromGeometry(app.graphicsDevice, geom);
-    entity.addComponent('render', {
-      meshInstances: [new pc.MeshInstance(mesh, mat)],
-    });
-  }
-
-  // Light component support
-  if (spec.components?.light) {
-    entity.addComponent('light', {
-      type: spec.components.light.type,
-      color: spec.components.light.color ? new pc.Color(
-        (spec.components.light.color as [number, number, number])[0] / 255,
-        (spec.components.light.color as [number, number, number])[1] / 255,
-        (spec.components.light.color as [number, number, number])[2] / 255,
-      ) : undefined,
-      intensity: spec.components.light.intensity,
-      range: spec.components.light.range,
-      castShadows: spec.components.light.castShadows,
-      shadowResolution: spec.components.light.shadowResolution,
-      innerConeAngle: spec.components.light.innerConeAngle,
-      outerConeAngle: spec.components.light.outerConeAngle,
-    });
-  }
-
-  if (spec.position) entity.setPosition(...spec.position);
-  if (spec.rotation) entity.setLocalEulerAngles(...spec.rotation);
-  if (spec.scale) entity.setLocalScale(...spec.scale);
-
-  return entity;
 }
 
 function buildEntity(
   app: pc.Application,
   spec: SceneEntitySpec,
+  billboardIds: Set<string>,
 ): pc.Entity {
   // Text-only billboard (no render component)
   if (spec.components?.text && !spec.components?.render) {
-    return buildTextBillboard(app, spec);
-  }
-
-  // Render entity with text overlay (inscribed text)
-  if (spec.components?.text && spec.components?.render) {
-    return buildTexturedEntity(app, spec);
+    return buildTextBillboard(app, spec, billboardIds);
   }
 
   // Grid floor is a special case (opacity + texture)
@@ -365,6 +319,11 @@ function buildEntity(
       innerConeAngle: spec.components.light.innerConeAngle,
       outerConeAngle: spec.components.light.outerConeAngle,
     });
+  }
+
+  // Text overlay: apply text canvas as emissiveMap on the render entity
+  if (spec.components?.text) {
+    applyTextOverlay(app, entity, mat, spec.components.text, !!spec.material.emissive);
   }
 
   if (spec.position) entity.setPosition(...spec.position);
@@ -427,6 +386,8 @@ export function createScene(
   let activeContent: SceneContent | null = null;
   const activeEntities: Record<string, pc.Entity> = {};
   let followableIds: string[] = [];
+  /** Entity IDs that should billboard (face the camera each frame). Per-scene instance. */
+  const billboardIds = new Set<string>();
 
   function loadContent(content: SceneContent) {
     unloadContent();
@@ -434,7 +395,7 @@ export function createScene(
 
     // First pass: create all entities and add to root
     for (const spec of content.entities) {
-      const entity = buildEntity(app, spec);
+      const entity = buildEntity(app, spec, billboardIds);
       activeEntities[spec.id] = entity;
       app.root.addChild(entity);
     }

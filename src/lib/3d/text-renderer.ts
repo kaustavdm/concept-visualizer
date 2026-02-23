@@ -85,7 +85,7 @@ export function createTextCanvas(spec: TextComponentSpec): HTMLCanvasElement {
 	const measureCtx = measureCanvas.getContext('2d')!;
 	measureCtx.font = font;
 
-	const maxWidth = spec.maxWidth ?? undefined;
+	const maxWidth = spec.maxWidth;
 	const lines = maxWidth
 		? wrapText(measureCtx, spec.text, maxWidth)
 		: spec.text.split('\n').map((l) => l || '');
