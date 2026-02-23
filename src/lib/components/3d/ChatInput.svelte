@@ -6,13 +6,12 @@
 
   interface Props {
     onSubmit: (text: string) => void;
-    activeMode?: string;
     disabled?: boolean;
     loading?: boolean;
     placeholderText?: string;
   }
 
-  let { onSubmit, activeMode = 'graph', disabled = false, loading = false, placeholderText = 'Describe a concept...' }: Props = $props();
+  let { onSubmit, disabled = false, loading = false, placeholderText = 'Describe a concept...' }: Props = $props();
 
   let containerEl: HTMLDivElement;
   let editorView: EditorView | undefined;
@@ -91,13 +90,6 @@
       box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
     "
   >
-    <span
-      class="shrink-0 text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-md"
-      style="background: var(--accent); color: white;"
-    >
-      {activeMode}
-    </span>
-
     <div bind:this={containerEl} class="flex-1 min-w-0"></div>
 
     <button

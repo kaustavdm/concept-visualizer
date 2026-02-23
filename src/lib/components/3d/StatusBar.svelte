@@ -9,6 +9,7 @@
     movement: boolean;
     filename: boolean;
     bar: boolean;
+    observation: boolean;
   }
 
   interface Props {
@@ -20,6 +21,7 @@
     config?: StatusBarConfig;
     pipelineStage?: PipelineStage;
     onAbort?: () => void;
+    observationMode?: string;
   }
 
   let {
@@ -28,9 +30,10 @@
     voiceRecording,
     activeFileName,
     fps = 0,
-    config = { fps: false, mode: true, movement: true, filename: true, bar: true },
+    config = { fps: false, mode: true, movement: true, filename: true, bar: true, observation: true },
     pipelineStage = 'idle',
     onAbort,
+    observationMode = 'graph',
   }: Props = $props();
 
   let fpsStyle = $derived.by(() => {
@@ -98,6 +101,11 @@
       >
         {stageLabel}
       </button>
+    {/if}
+    {#if config.observation && observationMode}
+      <span class="observation-badge">
+        {observationMode.toUpperCase()}
+      </span>
     {/if}
     {#if config.movement}
       <span class="camera-label">{cameraMode.toUpperCase()}</span>
@@ -203,6 +211,18 @@
     letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
     transition: color 0.3s;
+  }
+
+  .observation-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    line-height: 1.4;
+    color: var(--accent);
+    background: color-mix(in srgb, var(--accent) 20%, transparent);
   }
 
   .pipeline-badge {

@@ -46,6 +46,7 @@ export const SCENE_BAY: HexBayConfig = {
         { id: 'movement', label: 'Movement' },
         { id: 'filename', label: 'File' },
         { id: 'bar', label: 'Bar' },
+        { id: 'observation', label: 'Obs' },
       ],
       // Monitor/stats icon
       iconPath:

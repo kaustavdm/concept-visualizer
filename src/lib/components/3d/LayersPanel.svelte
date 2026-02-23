@@ -13,9 +13,6 @@
     onRemoveLayer: (layerId: string) => void;
     onGenerate?: (layerId: string, text: string) => void;
     generateLoading?: boolean;
-    observationModes?: string[];
-    activeObservationMode?: string;
-    onSelectObservationMode?: (mode: string) => void;
   }
 
   let {
@@ -27,9 +24,6 @@
     onRemoveLayer,
     onGenerate,
     generateLoading = false,
-    observationModes,
-    activeObservationMode,
-    onSelectObservationMode,
   }: Props = $props();
 
   let panelExpanded = $state(true);
@@ -190,20 +184,6 @@
       <span class="chevron" class:chevron-collapsed={!panelExpanded}>&#x25BE;</span>
       <span class="panel-title">Layers</span>
     </button>
-    {#if observationModes && observationModes.length > 0 && onSelectObservationMode}
-      <div class="mode-selector">
-        {#each observationModes as mode}
-          <button
-            class="mode-pill"
-            class:mode-active={activeObservationMode === mode}
-            onclick={() => onSelectObservationMode(mode)}
-            title="Filter by {mode} mode"
-          >
-            {mode}
-          </button>
-        {/each}
-      </div>
-    {/if}
     <button
       class="add-btn"
       onclick={onAddLayer}
@@ -506,39 +486,6 @@
 
   .add-btn:hover {
     background: var(--pad-btn-bg-hover);
-  }
-
-  .mode-selector {
-    display: flex;
-    gap: 4px;
-    margin-left: auto;
-    margin-right: 6px;
-  }
-
-  .mode-pill {
-    font-family: var(--font-main);
-    font-size: 10px;
-    font-weight: 500;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    padding: 2px 8px;
-    border-radius: 9999px;
-    border: 1px solid var(--glass-border);
-    background: var(--pad-btn-bg);
-    color: var(--pad-icon-muted);
-    cursor: pointer;
-    transition: background 0.15s, color 0.15s, border-color 0.15s;
-  }
-
-  .mode-pill:hover {
-    background: var(--pad-btn-bg-hover);
-    color: var(--pad-icon);
-  }
-
-  .mode-pill.mode-active {
-    background: var(--accent);
-    color: #fff;
-    border-color: var(--accent);
   }
 
   .layer-list-drawer {

@@ -67,6 +67,7 @@
     movement: true,
     filename: true,
     bar: true,
+    observation: true,
   });
   let showOnboarding = $state(false);
   let isProcessing = $state(false);
@@ -682,9 +683,6 @@
     {#if layersPanelVisible}
       <LayersPanel
         layers={activeLayers}
-        observationModes={modeRegistry.listModes().map(m => m.id)}
-        activeObservationMode={activeMode}
-        onSelectObservationMode={(mode) => activeMode = mode}
         onToggleVisibility={handleToggleVisibility}
         onUpdateText={handleUpdateText}
         onUpdateEntities={handleUpdateEntities}
@@ -724,7 +722,6 @@
     <!-- Chat input: centered above status bar -->
     <ChatInput
       onSubmit={handleChatSubmit}
-      {activeMode}
       loading={isProcessing}
     />
 
@@ -839,6 +836,7 @@
     config={statusBarConfig}
     {pipelineStage}
     onAbort={() => bridge?.abort()}
+    observationMode={activeMode}
   />
 </div>
 
