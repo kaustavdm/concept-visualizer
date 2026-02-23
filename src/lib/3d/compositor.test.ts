@@ -478,4 +478,47 @@ describe('composeLayers', () => {
 
     expect(result.entities[0].components?.light?.type).toBe('omni');
   });
+
+  it('passes through text component for billboard entities', () => {
+    const layers = [
+      makeLayer({
+        id: 'l1',
+        entities: [
+          {
+            id: 'label',
+            components: {
+              text: { text: 'Hello', billboard: true },
+            },
+          },
+        ],
+      }),
+    ];
+
+    const result = composeLayers(layers, 'test-scene');
+    expect(result.entities[0].components?.text).toEqual({ text: 'Hello', billboard: true });
+    // Text-only entity should still have a default mesh (compositor always sets one)
+    expect(result.entities[0].mesh).toBeDefined();
+  });
+
+  it('passes through text component alongside render component', () => {
+    const layers = [
+      makeLayer({
+        id: 'l1',
+        entities: [
+          makeEntity({
+            id: 'tablet',
+            components: {
+              render: { type: 'box' },
+              text: { text: 'Inscribed', fontSize: 32 },
+            },
+          }),
+        ],
+      }),
+    ];
+
+    const result = composeLayers(layers, 'test-scene');
+    expect(result.entities[0].components?.text).toEqual({ text: 'Inscribed', fontSize: 32 });
+    expect(result.entities[0].components?.render?.type).toBe('box');
+    expect(result.entities[0].mesh).toBe('box');
+  });
 });
