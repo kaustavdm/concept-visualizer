@@ -22,6 +22,7 @@
   import type { EntitySpec, Layer3d, Scene3d } from '$lib/3d/entity-spec';
   import { createObservationModeRegistry } from '$lib/3d/observation-modes/registry';
   import { graphMode } from '$lib/3d/observation-modes/graph';
+  import { moralityMode } from '$lib/3d/observation-modes/morality';
   import { createPipelineBridge } from '$lib/3d/pipeline-bridge';
   import type { PipelineBridge } from '$lib/3d/pipeline-bridge';
   import { createTieredRunner } from '$lib/pipeline/runner';
@@ -76,6 +77,7 @@
   // Observation mode registry
   const modeRegistry = createObservationModeRegistry();
   modeRegistry.register(graphMode);
+  modeRegistry.register(moralityMode);
   let activeMode = $state('graph');
   let activeFileName = $derived(
     storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
