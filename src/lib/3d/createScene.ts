@@ -5,6 +5,7 @@ import type {
   MaterialSpec,
   AnimationContext,
 } from './scene-content.types';
+import { createTextCanvas } from './text-renderer';
 
 export type CameraMode = 'orbit' | 'fly' | 'follow';
 
@@ -161,10 +162,166 @@ function buildGridFloor(
   return entity;
 }
 
+// --- Text rendering helpers ---
+
+/** Set of entity IDs that should billboard (face the camera each frame). */
+const billboardIds = new Set<string>();
+
+/**
+ * Create a pc.Texture from the text canvas.
+ * Uses emissiveMap so the text is visible regardless of lighting.
+ */
+function buildTextTexture(
+  app: pc.Application,
+  textSpec: { text: string; [key: string]: unknown },
+): pc.Texture {
+  const canvas = createTextCanvas(textSpec as any);
+  const texture = new pc.Texture(app.graphicsDevice, {
+    width: canvas.width,
+    height: canvas.height,
+    format: pc.PIXELFORMAT_RGBA8,
+    minFilter: pc.FILTER_LINEAR_MIPMAP_LINEAR,
+    magFilter: pc.FILTER_LINEAR,
+    addressU: pc.ADDRESS_CLAMP_TO_EDGE,
+    addressV: pc.ADDRESS_CLAMP_TO_EDGE,
+    anisotropy: 4,
+  });
+  texture.setSource(canvas);
+  return texture;
+}
+
+/**
+ * Build a text-only billboard entity: a plane with the text canvas as emissiveMap.
+ * If `billboard: true` in the text spec, the entity is registered for per-frame
+ * camera facing in the update loop.
+ */
+function buildTextBillboard(
+  app: pc.Application,
+  spec: SceneEntitySpec,
+): pc.Entity {
+  const textSpec = spec.components!.text!;
+  const texture = buildTextTexture(app, textSpec);
+
+  const mat = new pc.StandardMaterial();
+  mat.emissiveMap = texture;
+  mat.emissive = new pc.Color(1, 1, 1);
+  mat.opacityMap = texture;
+  mat.opacityMapChannel = 'a';
+  mat.blendType = pc.BLEND_NORMAL;
+  mat.cull = pc.CULLFACE_NONE;
+  mat.depthWrite = false;
+
+  // Apply material spec overrides if present
+  if (spec.material) {
+    if (spec.material.diffuse) {
+      mat.diffuse = new pc.Color(
+        spec.material.diffuse[0],
+        spec.material.diffuse[1],
+        spec.material.diffuse[2],
+      );
+    }
+    if (spec.material.opacity !== undefined) {
+      mat.opacity = spec.material.opacity;
+    }
+  }
+
+  mat.update();
+
+  const entity = new pc.Entity(spec.id);
+  entity.addComponent('render', { type: 'plane' });
+  entity.render!.meshInstances[0].material = mat;
+
+  // Rotate plane to face forward (planes are created facing up by default)
+  entity.setLocalEulerAngles(90, 0, 0);
+
+  if (spec.position) entity.setPosition(...spec.position);
+  if (spec.scale) entity.setLocalScale(...spec.scale);
+
+  // Register for billboard behavior
+  if (textSpec.billboard) {
+    billboardIds.add(spec.id);
+  }
+
+  return entity;
+}
+
+/**
+ * Build a regular render entity with a text canvas applied as emissiveMap.
+ * The text is "inscribed" on the entity's surface.
+ */
+function buildTexturedEntity(
+  app: pc.Application,
+  spec: SceneEntitySpec,
+): pc.Entity {
+  const textSpec = spec.components!.text!;
+  const texture = buildTextTexture(app, textSpec);
+
+  const mat = buildMaterial(spec.material);
+  mat.emissiveMap = texture;
+  // Ensure emissive is white so the map colors come through
+  if (!spec.material.emissive) {
+    mat.emissive = new pc.Color(1, 1, 1);
+  }
+  mat.update();
+
+  const entity = new pc.Entity(spec.id);
+
+  if (typeof spec.mesh === 'string') {
+    entity.addComponent('render', { type: spec.mesh });
+    entity.render!.meshInstances[0].material = mat;
+  } else {
+    const geom = new pc.ConeGeometry({
+      baseRadius: spec.mesh.baseRadius,
+      peakRadius: spec.mesh.peakRadius,
+      height: spec.mesh.height,
+      heightSegments: spec.mesh.heightSegments,
+      capSegments: spec.mesh.capSegments,
+    });
+    const mesh = pc.Mesh.fromGeometry(app.graphicsDevice, geom);
+    entity.addComponent('render', {
+      meshInstances: [new pc.MeshInstance(mesh, mat)],
+    });
+  }
+
+  // Light component support
+  if (spec.components?.light) {
+    entity.addComponent('light', {
+      type: spec.components.light.type,
+      color: spec.components.light.color ? new pc.Color(
+        (spec.components.light.color as [number, number, number])[0] / 255,
+        (spec.components.light.color as [number, number, number])[1] / 255,
+        (spec.components.light.color as [number, number, number])[2] / 255,
+      ) : undefined,
+      intensity: spec.components.light.intensity,
+      range: spec.components.light.range,
+      castShadows: spec.components.light.castShadows,
+      shadowResolution: spec.components.light.shadowResolution,
+      innerConeAngle: spec.components.light.innerConeAngle,
+      outerConeAngle: spec.components.light.outerConeAngle,
+    });
+  }
+
+  if (spec.position) entity.setPosition(...spec.position);
+  if (spec.rotation) entity.setLocalEulerAngles(...spec.rotation);
+  if (spec.scale) entity.setLocalScale(...spec.scale);
+
+  return entity;
+}
+
 function buildEntity(
   app: pc.Application,
   spec: SceneEntitySpec,
 ): pc.Entity {
+  // Text-only billboard (no render component)
+  if (spec.components?.text && !spec.components?.render) {
+    return buildTextBillboard(app, spec);
+  }
+
+  // Render entity with text overlay (inscribed text)
+  if (spec.components?.text && spec.components?.render) {
+    return buildTexturedEntity(app, spec);
+  }
+
   // Grid floor is a special case (opacity + texture)
   if (spec.opacity) {
     return buildGridFloor(app, spec);
@@ -314,6 +471,7 @@ export function createScene(
     activeContent = null;
     followableIds = [];
     followTargetId = null;
+    billboardIds.clear();
   }
 
   // --- Camera state ---
@@ -442,6 +600,17 @@ export function createScene(
         const entity = activeEntities[spec.id];
         if (entity && spec.animate) {
           spec.animate(entity, ctx);
+        }
+      }
+    }
+
+    // Billboard entities face the camera each frame
+    if (billboardIds.size > 0) {
+      const camPos = camera.getPosition();
+      for (const id of billboardIds) {
+        const entity = activeEntities[id];
+        if (entity) {
+          entity.lookAt(camPos);
         }
       }
     }
