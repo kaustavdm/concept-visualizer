@@ -1,7 +1,7 @@
 import { writable, get } from 'svelte/store';
 import { v4 as uuid } from 'uuid';
 import { db } from '$lib/db';
-import type { Scene3d, Layer3d, ChatMessage } from '$lib/3d/entity-spec';
+import type { Scene3d, Layer3d, ChatMessage, VersionSnapshot } from '$lib/3d/entity-spec';
 
 interface Files3dState {
   files: Scene3d[];
@@ -104,6 +104,28 @@ function createFiles3dStore() {
     }));
   }
 
+  async function addSnapshot(id: string, description: string, tier?: number, messageId?: string) {
+    const state = get({ subscribe });
+    const file = state.files.find(f => f.id === id);
+    if (!file) return;
+    const now = new Date().toISOString();
+    const snapshot: VersionSnapshot = {
+      version: (file.version ?? 0) + 1,
+      timestamp: now,
+      layers: structuredClone(file.layers),
+      description,
+      tier,
+      messageId,
+    };
+    const snapshots = [...(file.snapshots ?? []), snapshot];
+    const version = snapshot.version;
+    await db.files3d.update(id, { snapshots, version, updatedAt: now });
+    update(s => ({
+      ...s,
+      files: s.files.map(f => f.id === id ? { ...f, snapshots, version, updatedAt: now } : f)
+    }));
+  }
+
   function setActive(id: string) {
     update(s => ({ ...s, activeFileId: id }));
   }
@@ -116,6 +138,7 @@ function createFiles3dStore() {
     rename,
     updateLayers,
     addMessage,
+    addSnapshot,
     updateEnvironment,
     setActive
   };

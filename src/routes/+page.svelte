@@ -23,7 +23,13 @@
   import { createObservationModeRegistry } from '$lib/3d/observation-modes/registry';
   import { graphMode } from '$lib/3d/observation-modes/graph';
   import { createPipelineBridge } from '$lib/3d/pipeline-bridge';
-  import { createExtractorRegistry } from '$lib/extractors/registry';
+  import type { PipelineBridge } from '$lib/3d/pipeline-bridge';
+  import { createTieredRunner } from '$lib/pipeline/runner';
+  import { tier1Extract } from '$lib/pipeline/tiers/tier1-extract';
+  import { createTier2 } from '$lib/pipeline/tiers/tier2-refine';
+  import { createTier3 } from '$lib/pipeline/tiers/tier3-enrich';
+  import type { PipelineStage } from '$lib/pipeline/types';
+  import type { VisualizationSchema } from '$lib/types';
   import { generateEntities } from '$lib/llm/entity-gen';
   import { insertBetween } from '$lib/utils/fractional-index';
   import { get } from 'svelte/store';
@@ -75,28 +81,28 @@
     storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
   );
 
-  // Pipeline bridge: connects LLM extraction to observation modes
-  let bridge: ReturnType<typeof createPipelineBridge> | null = null;
+  // Pipeline bridge: connects tiered extraction to observation modes
+  let bridge: PipelineBridge | null = null;
+  let pipelineStage: PipelineStage = $state('idle');
 
   function initPipelineBridge() {
     const settings = get(settingsStore);
-    const extractorRegistry = createExtractorRegistry({
-      endpoint: settings.llmEndpoint,
-      model: settings.llmModel,
+
+    const tier2 = settings.tier2Enabled ? createTier2() : null;
+    const tier3 = settings.tier3Enabled ? createTier3({
+      llmConfig: { endpoint: settings.llmEndpoint, model: settings.llmModel },
+      enrichmentLevel: settings.llmEnrichmentLevel,
+      modeRoles: modeRegistry.getMode(activeMode)?.roles,
+      storyFocus: modeRegistry.getMode(activeMode)?.storyFocus,
+    }) : null;
+
+    const runner = createTieredRunner({
+      tier1: tier1Extract,
+      tier2,
+      tier3,
     });
-    bridge = createPipelineBridge(
-      {
-        extract: async (text) => {
-          const s = get(settingsStore);
-          extractorRegistry.updateLLMConfig({
-            endpoint: s.llmEndpoint,
-            model: s.llmModel,
-          });
-          return extractorRegistry.getEngine(s.extractionEngine).extract(text);
-        },
-      },
-      modeRegistry,
-    );
+
+    bridge = createPipelineBridge(runner, modeRegistry);
   }
 
   function showPipelineError(msg: string) {
@@ -220,6 +226,8 @@
         scene?.setTheme(settings.theme);
         document.documentElement.setAttribute('data-theme', settings.theme);
       }
+      // Re-init bridge with latest settings
+      initPipelineBridge();
     });
 
     return () => {
@@ -308,41 +316,69 @@
     }
     isProcessing = true;
     pipelineError = null;
+    const messageId = uuid();
+
+    // Pre-message snapshot
+    if (storeActiveFileId) {
+      await files3dStore.addSnapshot(storeActiveFileId, `Before: ${text.slice(0, 80)}`, 0, messageId);
+    }
+
+    let lastSchema: VisualizationSchema | undefined;
 
     try {
-      const messageId = uuid();
-      const newLayers = await bridge.process(text, activeMode, { theme });
+      for await (const result of bridge.process(text, activeMode, { theme }, (stage) => {
+        pipelineStage = stage;
+      })) {
+        lastSchema = result.schema;
 
-      // Assign fractional positions and source provenance
-      const plain = plainLayers();
-      let currentLayers = [...plain];
-      const layerIds: string[] = [];
+        // Assign fractional positions and source provenance
+        const plain = plainLayers();
+        // Remove any layers from previous tier yield for this message
+        const withoutCurrent = plain.filter(l =>
+          !(l.source.type === 'chat' && l.source.messageId === messageId)
+        );
+        let currentLayers = [...withoutCurrent];
 
-      for (const layer of newLayers) {
-        const positions = currentLayers.map(l => l.position);
-        const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
-        layer.position = insertBetween(lastPos, undefined);
-        layer.source = { type: 'chat', messageId };
-        layerIds.push(layer.id);
-        currentLayers = [...currentLayers, layer];
+        for (const layer of result.layers) {
+          const positions = currentLayers.map(l => l.position);
+          const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
+          layer.position = insertBetween(lastPos, undefined);
+          layer.source = { type: 'chat', messageId };
+          currentLayers = [...currentLayers, layer];
+        }
+
+        activeLayers = currentLayers;
+
+        // Tier snapshot
+        if (storeActiveFileId) {
+          await files3dStore.updateLayers(storeActiveFileId, plainLayers());
+          await files3dStore.addSnapshot(storeActiveFileId, `Tier ${result.tier}`, result.tier, messageId);
+        }
       }
 
-      activeLayers = currentLayers;
-
-      // Persist layers and chat message
+      // Persist chat message with cached schema
       if (storeActiveFileId) {
-        await files3dStore.updateLayers(storeActiveFileId, plainLayers());
+        const layerIds = activeLayers
+          .filter(l => l.source.type === 'chat' && l.source.messageId === messageId)
+          .map(l => l.id);
+
         await files3dStore.addMessage(storeActiveFileId, {
           id: messageId,
           text,
           timestamp: new Date().toISOString(),
           layerIds,
           observationMode: activeMode,
+          schema: lastSchema,
         });
       }
     } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Extraction failed';
-      showPipelineError(msg);
+      if (e instanceof Error && e.message === 'Pipeline aborted') {
+        pipelineStage = 'interrupted';
+      } else {
+        const msg = e instanceof Error ? e.message : 'Extraction failed';
+        showPipelineError(msg);
+        pipelineStage = 'error';
+      }
     } finally {
       isProcessing = false;
     }
@@ -783,6 +819,8 @@
     {activeFileName}
     fps={currentFps}
     config={statusBarConfig}
+    {pipelineStage}
+    onAbort={() => bridge?.abort()}
   />
 </div>
 
