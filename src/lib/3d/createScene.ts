@@ -233,7 +233,7 @@ function buildTextBillboard(
   const plane = new pc.Entity(`${spec.id}__plane`);
   plane.addComponent('render', { type: 'plane' });
   plane.render!.meshInstances[0].material = mat;
-  plane.setLocalEulerAngles(90, 0, 0);
+  plane.setLocalEulerAngles(-90, 0, 0);
   entity.addChild(plane);
 
   if (spec.position) entity.setPosition(...spec.position);

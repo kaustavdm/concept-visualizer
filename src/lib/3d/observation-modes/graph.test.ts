@@ -18,24 +18,32 @@ const testSchema: VisualizationSchema = {
 };
 
 describe('graphMode', () => {
-	it('produces 3 layers: ground, concepts, connections', () => {
+	it('produces 3 layers: environment, concepts, connections', () => {
 		const layers = graphMode.render(testSchema, { theme: 'light' });
 		expect(layers).toHaveLength(3);
 		expect(layers.map(l => l.name)).toEqual(
-			expect.arrayContaining(['Ground', 'Concepts', 'Connections'])
+			expect.arrayContaining(['Environment', 'Concepts', 'Connections'])
 		);
 	});
 
-	it('creates one entity per node in concepts layer', () => {
+	it('creates one entity per node in concepts layer with prefab and text child', () => {
 		const layers = graphMode.render(testSchema, { theme: 'light' });
 		const concepts = layers.find(l => l.name === 'Concepts')!;
 		expect(concepts.entities).toHaveLength(2);
+		const nodeA = concepts.entities.find(e => e.id === 'a')!;
+		expect(nodeA.prefab).toBe('graph:core');
+		expect(nodeA.children).toHaveLength(1);
+		expect(nodeA.children![0].components.text?.text).toBe('Node A');
 	});
 
-	it('creates one entity per edge in connections layer', () => {
+	it('creates one entity per edge in connections layer with rotation', () => {
 		const layers = graphMode.render(testSchema, { theme: 'light' });
 		const connections = layers.find(l => l.name === 'Connections')!;
 		expect(connections.entities).toHaveLength(1);
+		const edge = connections.entities[0];
+		expect(edge.rotation).toBeDefined();
+		// Y-axis is the long axis (length)
+		expect(edge.scale![1]).toBeGreaterThan(edge.scale![0]);
 	});
 
 	it('applies weight to node scale', () => {

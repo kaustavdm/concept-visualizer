@@ -3,40 +3,7 @@ import type { ObservationMode, RenderOptions } from './types';
 import type { VisualizationSchema } from '$lib/types';
 import type { EntitySpec, Layer3d } from '../entity-spec';
 import { v4 as uuid } from 'uuid';
-
-// Color palette indexed by narrativeRole and a rotating set for themes
-// All colors in 0-1 range (PlayCanvas pc.Color convention)
-const ROLE_COLORS: Record<string, [number, number, number]> = {
-	central: [0.31, 0.55, 1.0],
-	supporting: [0.47, 0.78, 0.47],
-	contextual: [0.78, 0.63, 0.31],
-	outcome: [0.78, 0.31, 0.63],
-};
-
-// Distinctive palette for differentiating nodes when theme/role aren't useful
-const PALETTE: [number, number, number][] = [
-	[0.31, 0.55, 1.0],   // blue
-	[0.9, 0.39, 0.24],   // orange
-	[0.47, 0.78, 0.47],  // green
-	[0.78, 0.31, 0.63],  // magenta
-	[1.0, 0.78, 0.24],   // yellow
-	[0.39, 0.82, 0.82],  // teal
-	[0.71, 0.47, 1.0],   // purple
-	[1.0, 0.55, 0.55],   // salmon
-];
-
-function getNodeColor(
-	narrativeRole?: string,
-	theme?: string,
-	index: number = 0,
-): [number, number, number] {
-	// 1. Use narrativeRole if it's a known value
-	if (narrativeRole && ROLE_COLORS[narrativeRole]) {
-		return ROLE_COLORS[narrativeRole];
-	}
-	// 2. Fall back to a rotating palette based on node index
-	return PALETTE[index % PALETTE.length];
-}
+import { computeEdgeRotation } from './edge-utils';
 
 function makeLayer(partial: Partial<Layer3d> & { name: string; entities: EntitySpec[] }): Layer3d {
 	return {
@@ -138,25 +105,39 @@ export const graphMode: ObservationMode = {
 			},
 		}];
 
-		// Concepts layer — one sphere per node with differentiated colors
-		const conceptEntities: EntitySpec[] = nodes.map((node, i) => {
+		// Concepts layer — one prefab-backed entity per node with text labels
+		const conceptEntities: EntitySpec[] = nodes.map((node) => {
 			const pos = nodePositions.get(node.id) ?? [0, 1, 0];
 			const weight = node.weight ?? 0.5;
 			const s = 0.5 + weight * 1.5;
-			const color = getNodeColor(node.narrativeRole, node.theme, i);
 
 			return {
 				id: node.id,
-				components: { render: { type: 'sphere' as const, castShadows: true } },
+				prefab: `graph:${node.modeRole ?? 'core'}`,
+				components: {},
 				position: pos,
 				scale: [s, s, s] as [number, number, number],
-				material: { diffuse: color, metalness: 0.3, gloss: 0.6 },
 				label: node.label,
 				weight: node.weight,
 				details: node.details,
 				tags: node.theme ? [node.theme] : [],
 				followable: true,
-			};
+				children: [
+					{
+						id: `${node.id}-label`,
+						components: {
+							text: {
+								text: node.label,
+								fontSize: 24,
+								color: [1, 1, 1] as [number, number, number],
+								billboard: true,
+							},
+						},
+						position: [0, 1.2, 0] as [number, number, number],
+						scale: [1.5, 1.5, 1.5] as [number, number, number],
+					},
+				],
+			} satisfies EntitySpec;
 		});
 
 		// Connections layer — one elongated box per edge
@@ -180,7 +161,8 @@ export const graphMode: ObservationMode = {
 				id: `edge-${edge.source}-${edge.target}`,
 				components: { render: { type: 'box' as const } },
 				position: [midX, midY, midZ] as [number, number, number],
-				scale: [thickness, thickness, length] as [number, number, number],
+				scale: [thickness, length, thickness] as [number, number, number],
+				rotation: computeEdgeRotation(dx, dy, dz),
 				material: {
 					diffuse: [0.39, 0.39, 0.47] as [number, number, number],
 					opacity: 0.3 + strength * 0.4,
@@ -191,7 +173,7 @@ export const graphMode: ObservationMode = {
 		});
 
 		return [
-			makeLayer({ name: 'Ground', entities: groundEntities, position: 'a' }),
+			makeLayer({ name: 'Environment', entities: groundEntities, position: 'a' }),
 			makeLayer({ name: 'Concepts', entities: conceptEntities, position: 'n' }),
 			makeLayer({ name: 'Connections', entities: connectionEntities, position: 'z' }),
 		];

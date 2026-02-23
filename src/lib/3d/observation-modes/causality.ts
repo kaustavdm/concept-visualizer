@@ -3,6 +3,7 @@ import type { ObservationMode, RenderOptions } from './types';
 import type { VisualizationSchema } from '$lib/types';
 import type { EntitySpec, Layer3d } from '../entity-spec';
 import { v4 as uuid } from 'uuid';
+import { computeEdgeRotation } from './edge-utils';
 
 /**
  * Causality observation mode — River rapids directed flow.
@@ -270,7 +271,8 @@ export const causalityMode: ObservationMode = {
 				id: `edge-${edge.source}-${edge.target}`,
 				components: { render: { type: 'box' as const } },
 				position: [midX, midY, midZ] as [number, number, number],
-				scale: [thickness, thickness, length] as [number, number, number],
+				scale: [thickness, length, thickness] as [number, number, number],
+				rotation: computeEdgeRotation(dx, dy, dz),
 				material: {
 					diffuse: EDGE_COLOR,
 					opacity: 0.3 + strength * 0.4,

@@ -29,13 +29,12 @@
   import { debateMode } from '$lib/3d/observation-modes/debate';
   import { appearanceMode } from '$lib/3d/observation-modes/appearance';
   import { createPipelineBridge } from '$lib/3d/pipeline-bridge';
-  import type { PipelineBridge } from '$lib/3d/pipeline-bridge';
+  import type { PipelineBridge, TieredBridgeResult } from '$lib/3d/pipeline-bridge';
   import { createTieredRunner } from '$lib/pipeline/runner';
   import { tier1Extract } from '$lib/pipeline/tiers/tier1-extract';
   import { createTier2 } from '$lib/pipeline/tiers/tier2-refine';
   import { createTier3 } from '$lib/pipeline/tiers/tier3-enrich';
   import type { PipelineStage } from '$lib/pipeline/types';
-  import type { VisualizationSchema } from '$lib/types';
   import { generateEntities } from '$lib/llm/entity-gen';
   import { insertBetween } from '$lib/utils/fractional-index';
   import { get } from 'svelte/store';
@@ -163,6 +162,12 @@
   );
 
   onMount(() => {
+    // Read default observation mode from saved settings
+    const savedSettings = get(settingsStore);
+    if (savedSettings.defaultObservationMode) {
+      activeMode = savedSettings.defaultObservationMode;
+    }
+
     // Initialize pipeline bridge for LLM extraction
     initPipelineBridge();
 
@@ -336,23 +341,22 @@
       await files3dStore.addSnapshot(storeActiveFileId, `Before: ${text.slice(0, 80)}`, 0, messageId);
     }
 
-    let lastSchema: VisualizationSchema | undefined;
+    let lastResult: TieredBridgeResult | undefined;
 
     try {
+      // Accumulate only the final tier result — avoids flashing intermediate renders
       for await (const result of bridge.process(text, activeMode, { theme }, (stage) => {
         pipelineStage = stage;
       })) {
-        lastSchema = result.schema;
+        lastResult = result;
+      }
 
-        // Assign fractional positions and source provenance
+      // Add layers from the final result only
+      if (lastResult) {
         const plain = plainLayers();
-        // Remove any layers from previous tier yield for this message
-        const withoutCurrent = plain.filter(l =>
-          !(l.source.type === 'chat' && l.source.messageId === messageId)
-        );
-        let currentLayers = [...withoutCurrent];
+        let currentLayers = [...plain];
 
-        for (const layer of result.layers) {
+        for (const layer of lastResult.layers) {
           const positions = currentLayers.map(l => l.position);
           const lastPos = positions.length > 0 ? positions.sort().pop() : undefined;
           layer.position = insertBetween(lastPos, undefined);
@@ -362,15 +366,15 @@
 
         activeLayers = currentLayers;
 
-        // Tier snapshot
+        // Persist layers and snapshot
         if (storeActiveFileId) {
           await files3dStore.updateLayers(storeActiveFileId, plainLayers());
-          await files3dStore.addSnapshot(storeActiveFileId, `Tier ${result.tier}`, result.tier, messageId);
+          await files3dStore.addSnapshot(storeActiveFileId, `Tier ${lastResult.tier}`, lastResult.tier, messageId);
         }
       }
 
       // Persist chat message with cached schema
-      if (storeActiveFileId) {
+      if (storeActiveFileId && lastResult) {
         const layerIds = activeLayers
           .filter(l => l.source.type === 'chat' && l.source.messageId === messageId)
           .map(l => l.id);
@@ -381,7 +385,7 @@
           timestamp: new Date().toISOString(),
           layerIds,
           observationMode: activeMode,
-          schema: lastSchema,
+          schema: lastResult.schema,
         });
       }
     } catch (e) {
@@ -626,6 +630,7 @@
     // Observation mode selection
     if (faceId === 'observation') {
       activeMode = optionId;
+      initPipelineBridge();
       return;
     }
 
