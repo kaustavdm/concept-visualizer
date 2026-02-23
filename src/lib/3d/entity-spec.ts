@@ -1,4 +1,5 @@
 import type { AnimationDSL } from './animation-dsl';
+import type { VisualizationSchema } from '$lib/types';
 
 // --- PlayCanvas-aligned component specs (typed subset + passthrough) ---
 
@@ -40,6 +41,17 @@ export interface MaterialSpec {
 	[key: string]: unknown;
 }
 
+export interface TextComponentSpec {
+	text: string;
+	fontSize?: number;
+	color?: [number, number, number];
+	background?: [number, number, number];
+	backgroundOpacity?: number;
+	align?: 'center' | 'left' | 'right';
+	billboard?: boolean;
+	maxWidth?: number;
+}
+
 export interface EntitySpec {
 	id: string;
 	position?: [number, number, number];
@@ -49,6 +61,7 @@ export interface EntitySpec {
 	components: {
 		render?: RenderComponentSpec;
 		light?: LightComponentSpec;
+		text?: TextComponentSpec;
 	};
 
 	material?: MaterialSpec;
@@ -94,6 +107,17 @@ export interface ChatMessage {
 	timestamp: string;
 	layerIds: string[];
 	observationMode?: string;
+	schema?: VisualizationSchema;
+}
+
+/** Full point-in-time snapshot for undo/restore. Stores complete layer copies. */
+export interface VersionSnapshot {
+	version: number;
+	timestamp: string;
+	layers: Layer3d[];
+	description: string;
+	tier?: number;
+	messageId?: string;
 }
 
 export interface Scene3d {
@@ -118,5 +142,6 @@ export interface Scene3d {
 	};
 	version: number;
 	messages?: ChatMessage[];
+	snapshots?: VersionSnapshot[];
 	metadata?: Record<string, unknown>;
 }

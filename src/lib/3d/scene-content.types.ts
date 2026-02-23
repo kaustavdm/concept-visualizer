@@ -53,6 +53,7 @@ export interface SceneEntitySpec {
   components?: {
     render?: { type: string; [key: string]: unknown };
     light?: { type: string; [key: string]: unknown };
+    text?: { text: string; [key: string]: unknown };
   };
   /** Human-readable label for concept visualization */
   label?: string;

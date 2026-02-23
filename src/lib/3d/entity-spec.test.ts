@@ -7,7 +7,9 @@ import type {
 	LightComponentSpec,
 	MaterialSpec,
 	ChatMessage,
+	VersionSnapshot,
 } from './entity-spec';
+import type { VisualizationSchema } from '$lib/types';
 
 describe('EntitySpec types', () => {
 	it('creates a minimal entity with render component', () => {
@@ -211,6 +213,21 @@ describe('EntitySpec types', () => {
 		expect(entity.weight).toBe(0.85);
 		expect(entity.details).toBe('A branch of AI focused on learning from data.');
 	});
+
+	it('accepts text component on EntitySpec', () => {
+		const entity: EntitySpec = {
+			id: 'label-1',
+			components: {
+				text: {
+					text: 'Hello World',
+					fontSize: 36,
+					color: [1, 1, 1],
+					billboard: true,
+				},
+			},
+		};
+		expect(entity.components.text?.text).toBe('Hello World');
+	});
 });
 
 describe('Layer3d type', () => {
@@ -379,6 +396,58 @@ describe('Scene3d type', () => {
 		expect(scene.environment?.fog?.type).toBe('none');
 		expect(scene.version).toBe(2);
 	});
+
+	it('accepts tier and messageId on VersionSnapshot', () => {
+		const snap: VersionSnapshot = {
+			version: 1,
+			timestamp: new Date().toISOString(),
+			layers: [],
+			description: 'Tier 1',
+			tier: 1,
+			messageId: 'msg-1',
+		};
+		expect(snap.tier).toBe(1);
+		expect(snap.messageId).toBe('msg-1');
+
+		const minimal: VersionSnapshot = {
+			version: 2,
+			timestamp: new Date().toISOString(),
+			layers: [],
+			description: 'No tier',
+		};
+		expect(minimal.tier).toBeUndefined();
+		expect(minimal.messageId).toBeUndefined();
+	});
+
+	it('accepts snapshots on Scene3d', () => {
+		const scene: Scene3d = {
+			id: 'scene-snap',
+			title: 'Snapshot Scene',
+			createdAt: '2026-02-23T00:00:00.000Z',
+			updatedAt: '2026-02-23T00:00:00.000Z',
+			layers: [],
+			version: 3,
+			snapshots: [
+				{
+					version: 1,
+					timestamp: '2026-02-23T00:00:00.000Z',
+					layers: [],
+					description: 'Initial',
+				},
+				{
+					version: 2,
+					timestamp: '2026-02-23T01:00:00.000Z',
+					layers: [],
+					description: 'Tier 2 refinement',
+					tier: 2,
+					messageId: 'msg-5',
+				},
+			],
+		};
+		expect(scene.snapshots).toHaveLength(2);
+		expect(scene.snapshots![1].tier).toBe(2);
+		expect(scene.snapshots![1].messageId).toBe('msg-5');
+	});
 });
 
 describe('ChatMessage type', () => {
@@ -394,5 +463,31 @@ describe('ChatMessage type', () => {
 		expect(msg.id).toBe('msg-200');
 		expect(msg.layerIds).toHaveLength(2);
 		expect(msg.observationMode).toBe('detailed');
+	});
+
+	it('accepts schema on ChatMessage', () => {
+		const msg: ChatMessage = {
+			id: 'msg-1',
+			text: 'test',
+			timestamp: new Date().toISOString(),
+			layerIds: [],
+			schema: {
+				type: 'graph',
+				title: 'Test',
+				description: 'Test schema',
+				nodes: [],
+				edges: [],
+				metadata: { concepts: [], relationships: [] },
+			},
+		};
+		expect(msg.schema?.type).toBe('graph');
+
+		const noSchema: ChatMessage = {
+			id: 'msg-2',
+			text: 'no cache',
+			timestamp: new Date().toISOString(),
+			layerIds: [],
+		};
+		expect(noSchema.schema).toBeUndefined();
 	});
 });
