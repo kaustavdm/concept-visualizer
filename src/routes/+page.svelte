@@ -23,6 +23,11 @@
   import { createObservationModeRegistry } from '$lib/3d/observation-modes/registry';
   import { graphMode } from '$lib/3d/observation-modes/graph';
   import { moralityMode } from '$lib/3d/observation-modes/morality';
+  import { ontologyMode } from '$lib/3d/observation-modes/ontology';
+  import { epistemologyMode } from '$lib/3d/observation-modes/epistemology';
+  import { causalityMode } from '$lib/3d/observation-modes/causality';
+  import { debateMode } from '$lib/3d/observation-modes/debate';
+  import { appearanceMode } from '$lib/3d/observation-modes/appearance';
   import { createPipelineBridge } from '$lib/3d/pipeline-bridge';
   import type { PipelineBridge } from '$lib/3d/pipeline-bridge';
   import { createTieredRunner } from '$lib/pipeline/runner';
@@ -78,6 +83,11 @@
   const modeRegistry = createObservationModeRegistry();
   modeRegistry.register(graphMode);
   modeRegistry.register(moralityMode);
+  modeRegistry.register(ontologyMode);
+  modeRegistry.register(epistemologyMode);
+  modeRegistry.register(causalityMode);
+  modeRegistry.register(debateMode);
+  modeRegistry.register(appearanceMode);
   let activeMode = $state('graph');
   let activeFileName = $derived(
     storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
