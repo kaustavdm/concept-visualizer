@@ -216,6 +216,7 @@ export const debateMode: ObservationMode = {
 			return {
 				id: node.id,
 				prefab,
+				components: {},
 				position: pos as [number, number, number],
 				scale: [s, s, s] as [number, number, number],
 				label: node.label,
