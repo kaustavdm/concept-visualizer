@@ -64,7 +64,13 @@ function deepMerge<T extends Record<string, unknown>>(base: T, overrides: Partia
  * Entity fields win over template. Strips `prefab` from result.
  */
 export function resolvePrefab(entity: EntitySpec, registry: PrefabRegistry): EntitySpec {
-	if (!entity.prefab) return entity;
+	if (!entity.prefab) {
+		// Still recurse into children even if this entity has no prefab
+		if (entity.children) {
+			return { ...entity, children: entity.children.map(c => resolvePrefab(c, registry)) };
+		}
+		return entity;
+	}
 
 	const definition = registry.get(entity.prefab);
 	if (!definition) return entity;
@@ -75,5 +81,10 @@ export function resolvePrefab(entity: EntitySpec, registry: PrefabRegistry): Ent
 		entityOverrides as Record<string, unknown>,
 	) as Omit<EntitySpec, 'id'>;
 
-	return { id, ...merged, children };
+	const resolved: EntitySpec = { id, ...merged, children };
+	// Recurse into children after merge
+	if (resolved.children) {
+		resolved.children = resolved.children.map(c => resolvePrefab(c, registry));
+	}
+	return resolved;
 }

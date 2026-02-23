@@ -227,12 +227,17 @@ export const epistemologyMode: ObservationMode = {
 			// Scale by weight
 			const s = 0.7 + weight * 0.6;
 
+			// Certainty-as-opacity: uncertain concepts are more transparent
+			const certainty = node.weight ?? 0.5;
+			const opacity = 0.4 + certainty * 0.6; // range 0.4–1.0
+
 			return {
 				id: node.id,
 				prefab,
 				components: {},
 				position: pos as [number, number, number],
 				scale: [s, s, s] as [number, number, number],
+				material: { opacity, blendType: opacity < 1 ? 'normal' as const : undefined },
 				label: node.label,
 				weight: node.weight,
 				details: node.details,

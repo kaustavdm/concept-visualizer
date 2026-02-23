@@ -5,7 +5,7 @@ import type {
   MaterialSpec,
   AnimationContext,
 } from './scene-content.types';
-import { createTextCanvas } from './text-renderer';
+import { createTextCanvas, clearTextCache } from './text-renderer';
 import type { TextComponentSpec } from './entity-spec';
 
 export type CameraMode = 'orbit' | 'fly' | 'follow';
@@ -51,6 +51,13 @@ const BLEND_MAP: Record<string, number> = {
   normal: pc.BLEND_NORMAL,
   additive: pc.BLEND_ADDITIVE,
   none: pc.BLEND_NONE,
+};
+
+const FOG_MAP: Record<string, string> = {
+  none: 'none',
+  linear: 'linear',
+  exp: 'exp',
+  exp2: 'exp2',
 };
 
 /** Known MaterialSpec keys handled explicitly — everything else is passed through */
@@ -420,6 +427,15 @@ export function createScene(
     if (followableIds.length > 0 && !followTargetId) {
       followTargetId = followableIds[0];
     }
+
+    // Apply environment settings (fog)
+    if (content.environment?.fog) {
+      const fog = content.environment.fog;
+      const fogParams = (app.scene as any).fog;
+      fogParams.type = FOG_MAP[fog.type] ?? 'none';
+      if (fog.color) fogParams.color.set(fog.color[0], fog.color[1], fog.color[2]);
+      if (fog.density !== undefined) fogParams.density = fog.density;
+    }
   }
 
   function unloadContent() {
@@ -433,6 +449,9 @@ export function createScene(
     followableIds = [];
     followTargetId = null;
     billboardIds.clear();
+    // Reset fog and clear text cache
+    (app.scene as any).fog.type = 'none';
+    clearTextCache();
   }
 
   // --- Camera state ---

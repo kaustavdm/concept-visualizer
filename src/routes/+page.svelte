@@ -88,6 +88,7 @@
   modeRegistry.register(causalityMode);
   modeRegistry.register(debateMode);
   modeRegistry.register(appearanceMode);
+  const prefabRegistry = modeRegistry.buildPrefabRegistry();
   let activeMode = $state('graph');
   let activeFileName = $derived(
     storeFiles.find(f => f.id === storeActiveFileId)?.title ?? null
@@ -272,7 +273,7 @@
     const activeFile = state.files.find(f => f.id === state.activeFileId);
     if (activeFile) {
       activeLayers = activeFile.layers;
-      const content = composeLayers(activeFile.layers, activeFile.id);
+      const content = composeLayers(activeFile.layers, activeFile.id, prefabRegistry);
       scene?.loadContent(content);
     }
   }

@@ -57,6 +57,10 @@ export interface SceneEntitySpec {
   };
   /** Human-readable label for concept visualization */
   label?: string;
+  /** 0–1 importance weight (preserved from VisualizationNode) */
+  weight?: number;
+  /** 1-2 sentence description (preserved from VisualizationNode) */
+  details?: string;
   /** Semantic tags for filtering and grouping */
   tags?: string[];
   /** Per-entity theme-responsive material overrides (serializable alternative to scene-level onThemeChange) */
@@ -66,11 +70,20 @@ export interface SceneEntitySpec {
   };
 }
 
+/** Environment settings for the scene (fog, ambient, clear color) */
+export interface SceneEnvironment {
+  fog?: { type: 'none' | 'linear' | 'exp' | 'exp2'; color?: [number, number, number]; density?: number };
+  ambientColor?: [number, number, number];
+  clearColor?: [number, number, number];
+}
+
 /** Complete scene content definition */
 export interface SceneContent {
   id: string;
   name: string;
   entities: SceneEntitySpec[];
+  /** Optional scene environment overrides (fog, ambient, etc.) */
+  environment?: SceneEnvironment;
   /** Optional theme-responsive material overrides (called on theme change) */
   onThemeChange?: (
     theme: 'light' | 'dark',

@@ -3,6 +3,7 @@ import type { EntitySpec, Layer3d, MaterialSpec } from './entity-spec';
 import type {
   SceneContent,
   SceneEntitySpec,
+  SceneEnvironment,
   MaterialSpec as SceneContentMaterialSpec,
 } from './scene-content.types';
 import { resolveAnimation } from './animation-dsl';
@@ -31,6 +32,20 @@ function normalizeMaterialColors(mat: Partial<MaterialSpec>): Partial<MaterialSp
   if (result.specular) result.specular = normalizeColor(result.specular);
   return result;
 }
+
+/**
+ * PlayCanvas blend type constants (duplicated here to avoid runtime import
+ * of playcanvas in test environments — compositor is a pure data transform).
+ */
+const PC_BLEND_NONE = 3;
+const PC_BLEND_NORMAL = 2;
+const PC_BLEND_ADDITIVE = 1;
+
+const BLEND_MAP: Record<string, number> = {
+  normal: PC_BLEND_NORMAL,
+  additive: PC_BLEND_ADDITIVE,
+  none: PC_BLEND_NONE,
+};
 
 /**
  * Mapping from a serializable entity + its layer ID to the theme overrides
@@ -77,6 +92,15 @@ function applyMaterialOverrides(
   }
   if (overrides.gloss !== undefined) {
     mat.gloss = overrides.gloss;
+  }
+  if (overrides.opacity !== undefined) {
+    mat.opacity = overrides.opacity;
+    if ((mat as any).blendType === PC_BLEND_NONE) {
+      (mat as any).blendType = PC_BLEND_NORMAL;
+    }
+  }
+  if (overrides.blendType) {
+    (mat as any).blendType = BLEND_MAP[overrides.blendType] ?? PC_BLEND_NONE;
   }
   mat.update();
 }
@@ -159,8 +183,6 @@ function toSceneEntity(
     prefab,
     components,
     material,
-    weight,
-    details,
     ...rest
   } = entity;
 
@@ -293,6 +315,7 @@ export function composeLayers(
   layers: Layer3d[],
   id: string,
   prefabRegistry?: PrefabRegistry,
+  environment?: SceneEnvironment,
 ): SceneContent {
   // 1. Filter visible layers
   const visible = layers.filter((l) => l.visible);
@@ -300,18 +323,17 @@ export function composeLayers(
   // 2. Sort by position (fractional index string comparison)
   visible.sort((a, b) => a.position.localeCompare(b.position));
 
-  // 3. Resolve prefabs if registry provided
-  if (prefabRegistry) {
-    for (const layer of visible) {
-      layer.entities = layer.entities.map((e) =>
-        resolvePrefab(e, prefabRegistry),
-      );
-    }
-  }
+  // 3. Resolve prefabs if registry provided (clone to avoid mutating input)
+  const processedLayers = prefabRegistry
+    ? visible.map(layer => ({
+        ...layer,
+        entities: layer.entities.map(e => resolvePrefab(e, prefabRegistry)),
+      }))
+    : visible;
 
   // 4. Collect all entity IDs across all layers for animation ref resolution
   const allEntityIds = new Set<string>();
-  for (const layer of visible) {
+  for (const layer of processedLayers) {
     for (const entity of layer.entities) {
       collectEntityIds(entity, layer.id, undefined, allEntityIds);
     }
@@ -321,7 +343,7 @@ export function composeLayers(
   const entities: SceneEntitySpec[] = [];
   const themeEntries: ThemeEntry[] = [];
 
-  for (const layer of visible) {
+  for (const layer of processedLayers) {
     for (const entity of layer.entities) {
       entities.push(
         ...flattenEntity(entity, layer.id, undefined, themeEntries, allEntityIds),
@@ -334,6 +356,7 @@ export function composeLayers(
     id,
     name: id,
     entities,
+    environment,
   };
 
   if (themeEntries.length > 0) {

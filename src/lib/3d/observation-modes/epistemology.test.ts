@@ -132,4 +132,35 @@ describe('epistemologyMode', () => {
 		const concepts = layers.find(l => l.name === 'Concepts');
 		expect(concepts!.entities.length).toBe(0);
 	});
+
+	it('maps weight to material opacity (certainty-as-opacity)', () => {
+		const layers = epistemologyMode.render(schema, { theme: 'dark' });
+		const concepts = layers.find(l => l.name === 'Concepts');
+
+		// High certainty claim (weight=0.9) → opacity = 0.4 + 0.9*0.6 = 0.94
+		const claim = concepts!.entities.find(e => e.prefab === 'epistemology:claim');
+		expect(claim!.material?.opacity).toBeCloseTo(0.94, 2);
+		expect(claim!.material?.blendType).toBe('normal');
+
+		// Lower certainty limit (weight=0.4) → opacity = 0.4 + 0.4*0.6 = 0.64
+		const limit = concepts!.entities.find(e => e.prefab === 'epistemology:limit');
+		expect(limit!.material?.opacity).toBeCloseTo(0.64, 2);
+		expect(limit!.material?.blendType).toBe('normal');
+	});
+
+	it('defaults to 0.5 weight for nodes without weight', () => {
+		const noWeightSchema = {
+			type: 'graph' as const,
+			title: 'No Weight',
+			description: 'No weight test',
+			nodes: [{ id: 'x', label: 'Unknown', modeRole: 'claim' }],
+			edges: [],
+			metadata: { concepts: [], relationships: [] },
+		};
+		const layers = epistemologyMode.render(noWeightSchema, { theme: 'dark' });
+		const concepts = layers.find(l => l.name === 'Concepts');
+		const entity = concepts!.entities[0];
+		// Default weight 0.5 → opacity = 0.4 + 0.5*0.6 = 0.7
+		expect(entity.material?.opacity).toBeCloseTo(0.7, 2);
+	});
 });

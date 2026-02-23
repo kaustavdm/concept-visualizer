@@ -521,4 +521,71 @@ describe('composeLayers', () => {
     expect(result.entities[0].components?.render?.type).toBe('box');
     expect(result.entities[0].mesh).toBe('box');
   });
+
+  it('preserves weight and details through to SceneEntitySpec', () => {
+    const layers = [
+      makeLayer({
+        id: 'L',
+        entities: [
+          makeEntity({
+            id: 'concept',
+            weight: 0.8,
+            details: 'A well-supported claim',
+          }),
+        ],
+      }),
+    ];
+
+    const result = composeLayers(layers, 'scene-1');
+
+    expect(result.entities[0].weight).toBe(0.8);
+    expect(result.entities[0].details).toBe('A well-supported claim');
+  });
+
+  it('does not mutate input layers during prefab resolution', () => {
+    const registry = createPrefabRegistry();
+    registry.register({
+      id: 'test-prefab',
+      description: 'Test',
+      template: {
+        components: { render: { type: 'sphere' } },
+        scale: [2, 2, 2],
+      },
+      slots: [],
+    });
+
+    const originalEntity = {
+      id: 'orb',
+      prefab: 'test-prefab',
+      components: { render: { type: 'sphere' as const } },
+    };
+
+    const layers = [
+      makeLayer({
+        id: 'L',
+        entities: [originalEntity],
+      }),
+    ];
+
+    composeLayers(layers, 'scene-1', registry);
+
+    // Original layer entity should still have its prefab field
+    expect(layers[0].entities[0].prefab).toBe('test-prefab');
+    // Original entity reference should be unchanged
+    expect(layers[0].entities[0]).toBe(originalEntity);
+  });
+
+  it('passes environment through to SceneContent', () => {
+    const layers = [
+      makeLayer({ id: 'L', entities: [makeEntity({ id: 'a' })] }),
+    ];
+
+    const env = {
+      fog: { type: 'exp2' as const, color: [0.1, 0.1, 0.2] as [number, number, number], density: 0.02 },
+    };
+
+    const result = composeLayers(layers, 'scene-1', undefined, env);
+
+    expect(result.environment).toEqual(env);
+  });
 });

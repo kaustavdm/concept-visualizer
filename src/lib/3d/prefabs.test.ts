@@ -112,4 +112,68 @@ describe('resolvePrefab', () => {
 		// Children pass through unchanged
 		expect(result.children?.[0].components.render?.type).toBe('box');
 	});
+
+	it('recursively resolves prefabs on children', () => {
+		const registry = createPrefabRegistry();
+		registry.register(testPrefab);
+		registry.register({
+			id: 'label-plate',
+			description: 'A label plate',
+			template: {
+				components: { text: { text: '' } },
+				scale: [2, 2, 2],
+			},
+			slots: ['text'],
+		});
+
+		const entity: EntitySpec = {
+			id: 'parent',
+			prefab: 'concept-node',
+			components: {},
+			children: [
+				{
+					id: 'label',
+					prefab: 'label-plate',
+					components: {},
+				},
+			],
+		};
+
+		const result = resolvePrefab(entity, registry);
+
+		// Parent resolved from concept-node
+		expect(result.components.render?.type).toBe('sphere');
+		expect(result.prefab).toBeUndefined();
+
+		// Child resolved from label-plate
+		expect(result.children).toHaveLength(1);
+		expect(result.children![0].components.text).toBeDefined();
+		expect(result.children![0].scale).toEqual([2, 2, 2]);
+		expect(result.children![0].prefab).toBeUndefined();
+	});
+
+	it('recurses into children even when parent has no prefab', () => {
+		const registry = createPrefabRegistry();
+		registry.register(testPrefab);
+
+		const entity: EntitySpec = {
+			id: 'wrapper',
+			components: { render: { type: 'box' } },
+			children: [
+				{
+					id: 'inner',
+					prefab: 'concept-node',
+					components: {},
+				},
+			],
+		};
+
+		const result = resolvePrefab(entity, registry);
+
+		// Parent untouched
+		expect(result.components.render?.type).toBe('box');
+		// Child resolved
+		expect(result.children![0].components.render?.type).toBe('sphere');
+		expect(result.children![0].prefab).toBeUndefined();
+	});
 });

@@ -5,6 +5,26 @@
 
 import type { TextComponentSpec } from './entity-spec';
 
+// --- Canvas cache ---
+const textCache = new Map<string, HTMLCanvasElement>();
+
+function cacheKey(spec: TextComponentSpec): string {
+	return JSON.stringify({
+		t: spec.text,
+		s: spec.fontSize ?? 24,
+		c: spec.color ?? [1, 1, 1],
+		a: spec.align ?? 'center',
+		w: spec.maxWidth,
+		bg: spec.background,
+		bo: spec.backgroundOpacity,
+	});
+}
+
+/** Clear the text canvas cache (call on scene unload to reclaim memory). */
+export function clearTextCache(): void {
+	textCache.clear();
+}
+
 /** Round up to the next power of two (minimum 16). */
 function nextPow2(n: number): number {
 	const min = 16;
@@ -69,6 +89,10 @@ function wrapText(
  * the next power of two for WebGL texture compatibility.
  */
 export function createTextCanvas(spec: TextComponentSpec): HTMLCanvasElement {
+	const key = cacheKey(spec);
+	const cached = textCache.get(key);
+	if (cached) return cached;
+
 	const fontSize = spec.fontSize ?? 24;
 	const color: [number, number, number] = spec.color ?? [1, 1, 1];
 	const align = spec.align ?? 'center';
@@ -147,5 +171,6 @@ export function createTextCanvas(spec: TextComponentSpec): HTMLCanvasElement {
 		ctx.fillText(lines[i], textX, startY + i * lineSpacing);
 	}
 
+	textCache.set(key, canvas);
 	return canvas;
 }

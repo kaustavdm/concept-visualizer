@@ -1,8 +1,12 @@
 // src/lib/3d/text-renderer.test.ts
-import { describe, it, expect } from 'vitest';
-import { createTextCanvas } from './text-renderer';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { createTextCanvas, clearTextCache } from './text-renderer';
 
 describe('createTextCanvas', () => {
+	beforeEach(() => {
+		clearTextCache();
+	});
+
 	it('creates a canvas with text content', () => {
 		const canvas = createTextCanvas({
 			text: 'Hello World',
@@ -79,5 +83,28 @@ describe('createTextCanvas', () => {
 		});
 		expect(canvas).toBeInstanceOf(HTMLCanvasElement);
 		expect(canvas.height).toBeGreaterThan(30);
+	});
+
+	it('returns cached canvas on repeated call with same spec', () => {
+		const spec = { text: 'Cache me', fontSize: 24, color: [1, 0, 0] as [number, number, number] };
+		const first = createTextCanvas(spec);
+		const second = createTextCanvas(spec);
+		// Should be the exact same canvas instance (cache hit)
+		expect(second).toBe(first);
+	});
+
+	it('returns different canvas for different spec', () => {
+		const first = createTextCanvas({ text: 'A', fontSize: 24 });
+		const second = createTextCanvas({ text: 'B', fontSize: 24 });
+		expect(second).not.toBe(first);
+	});
+
+	it('clearTextCache invalidates the cache', () => {
+		const spec = { text: 'Cleared', fontSize: 24 };
+		const first = createTextCanvas(spec);
+		clearTextCache();
+		const second = createTextCanvas(spec);
+		// After clearing, a new canvas should be created
+		expect(second).not.toBe(first);
 	});
 });
