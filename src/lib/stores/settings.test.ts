@@ -27,10 +27,12 @@ describe('settingsStore', () => {
     expect(stored?.llmEndpoint).toBe('http://custom:8080/v1');
   });
 
-  it('should include pipeline defaults', async () => {
+  it('should include tiered pipeline defaults', async () => {
     await settingsStore.init();
     const settings = get(settingsStore);
-    expect(settings.pipelineMode).toBe('auto');
-    expect(settings.llmRefinement).toBe(false);
+    expect(settings.tier2Enabled).toBe(true);
+    expect(settings.tier3Enabled).toBe(true);
+    expect(settings.llmEnrichmentLevel).toBe('minimal');
+    expect(settings.defaultObservationMode).toBe('graph');
   });
 });

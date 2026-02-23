@@ -30,4 +30,13 @@ describe('extended types', () => {
     expect(schema.renderOptions?.orientation).toBe('vertical');
   });
 
+  it('VisualizationNode accepts modeRole field', () => {
+    const node: VisualizationNode = {
+      id: 'n1',
+      label: 'Test',
+      modeRole: 'agent',
+    };
+    expect(node.modeRole).toBe('agent');
+  });
+
 });

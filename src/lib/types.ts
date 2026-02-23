@@ -17,6 +17,7 @@ export interface VisualizationNode {
   narrativeRole?: NarrativeRole;
   logicalRole?: LogicalRole;
   storyRole?: StoryRole;
+  modeRole?: string;
 }
 
 export interface VisualizationEdge {
@@ -48,9 +49,10 @@ export interface AppSettings {
   llmModel: string;
   theme: 'light' | 'dark';
   controlPlacement: 'hud' | 'dock' | 'embedded';
-  extractionEngine: 'llm' | 'nlp' | 'keywords' | 'semantic';
-  pipelineMode: 'auto' | 'manual';
-  llmRefinement: boolean;
+  tier2Enabled: boolean;
+  tier3Enabled: boolean;
+  llmEnrichmentLevel: 'minimal' | 'full';
+  defaultObservationMode: string;
   onboardingCompleted: boolean;
 }
 
@@ -60,8 +62,9 @@ export const DEFAULT_SETTINGS: AppSettings = {
   llmModel: 'llama3.2',
   theme: 'light',
   controlPlacement: 'hud',
-  extractionEngine: 'llm',
-  pipelineMode: 'auto',
-  llmRefinement: false,
+  tier2Enabled: true,
+  tier3Enabled: true,
+  llmEnrichmentLevel: 'minimal',
+  defaultObservationMode: 'graph',
   onboardingCompleted: false,
 };

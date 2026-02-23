@@ -13,9 +13,10 @@ describe('ConceptDB', () => {
       llmModel: 'llama3.2',
       theme: 'light',
       controlPlacement: 'hud',
-      extractionEngine: 'llm',
-      pipelineMode: 'auto',
-      llmRefinement: false,
+      tier2Enabled: true,
+      tier3Enabled: true,
+      llmEnrichmentLevel: 'minimal',
+      defaultObservationMode: 'graph',
       onboardingCompleted: false,
     });
 
