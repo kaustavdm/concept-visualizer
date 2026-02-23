@@ -114,6 +114,18 @@ export function kMeansClusters(
 }
 
 // ---------------------------------------------------------------------------
+// Model warmup (pre-download for onboarding)
+// ---------------------------------------------------------------------------
+
+/**
+ * Pre-download and initialize the USE model so it's ready when Tier 2 runs.
+ * Safe to call multiple times — returns the cached model after first load.
+ */
+export async function warmupTier2Model(): Promise<void> {
+  await loadRealModel();
+}
+
+// ---------------------------------------------------------------------------
 // Tier 2 factory
 // ---------------------------------------------------------------------------
 

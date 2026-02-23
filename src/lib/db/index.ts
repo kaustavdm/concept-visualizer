@@ -74,3 +74,12 @@ class ConceptDB extends Dexie {
 }
 
 export const db = new ConceptDB();
+
+/**
+ * Delete the entire database. After calling this, the page must be reloaded
+ * because Dexie's connection is invalidated.
+ */
+export async function resetDatabase(): Promise<void> {
+  db.close();
+  await Dexie.delete('ConceptVisualizerDB');
+}
