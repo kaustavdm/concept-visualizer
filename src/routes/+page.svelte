@@ -622,6 +622,12 @@
       return;
     }
 
+    // Observation mode selection
+    if (faceId === 'observation') {
+      activeMode = optionId;
+      return;
+    }
+
     // Scene bay actions
     if (faceId === 'theme') {
       themeMode = optionId as 'system' | 'light' | 'dark';
@@ -676,7 +682,7 @@
     {#if layersPanelVisible}
       <LayersPanel
         layers={activeLayers}
-        observationModes={modeRegistry.listModes().map(m => m.name)}
+        observationModes={modeRegistry.listModes().map(m => m.id)}
         activeObservationMode={activeMode}
         onSelectObservationMode={(mode) => activeMode = mode}
         onToggleVisibility={handleToggleVisibility}

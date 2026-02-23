@@ -73,16 +73,21 @@ export const SCENE_BAY: HexBayConfig = {
         'M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z',
     },
     {
-      id: 'effects',
-      label: 'Effects',
+      id: 'observation',
+      label: 'Observe',
       isToggle: false,
       options: [
-        { id: 'none', label: 'None' },
-        { id: 'bloom', label: 'Bloom' },
-        { id: 'dof', label: 'DoF' },
+        { id: 'graph', label: 'Graph' },
+        { id: 'morality', label: 'Moral' },
+        { id: 'ontology', label: 'Onto' },
+        { id: 'epistemology', label: 'Epist' },
+        { id: 'causality', label: 'Causal' },
+        { id: 'debate', label: 'Debate' },
+        { id: 'appearance', label: 'Appear' },
       ],
+      // Eye icon (observation)
       iconPath:
-        'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5z',
+        'M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z',
     },
   ],
 };
@@ -183,7 +188,7 @@ export const DEFAULT_SELECTIONS: Record<string, string> = {
   status: 'mode',
   settings: '',
   camera: 'orbit',
-  effects: 'none',
+  observation: 'graph',
   // App bay
   extractor: 'llm',
   viztype: 'graph',
