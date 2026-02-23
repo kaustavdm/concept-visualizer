@@ -9,7 +9,9 @@ Turn written text into rich, story-driven 3D concept visualizations using local 
 - **Observation modes**: Pluggable renderers (graph, morality, etc.) that map extracted concepts to different 3D spatial metaphors
 - **Layer-based composition**: Build scenes from composable layers with per-entity animations and CRDT-ready fractional ordering
 - **Prefab system**: Named entity templates for consistent visual language across observation modes
+- **Guided onboarding**: 4-step first-run wizard — welcome, NLP model pre-download, LLM configuration, starter scene selection
 - **Scene management**: Create, clone, rename, and switch between concept scenes — persisted in IndexedDB via Dexie.js
+- **Settings reset**: Danger-zone option to wipe all app data with double-confirmation glass modals and auto-reload countdown
 - **Hex dial controls**: Gamepad-inspired hexagonal dials for scene actions, camera modes, and theme switching
 - **Vim-like input mode**: Command mode for shortcuts, input mode for text fields — status bar shows active mode
 - **Adaptive theming**: System/light/dark theme cycling with glass-morphism UI

@@ -7,12 +7,14 @@ SvelteKit 2 SPA (adapter-static, SSR disabled) with Svelte 5 runes ($props, $sta
 ## Key Patterns
 
 - **Stores**: Svelte writable stores in `src/lib/stores/` — settingsStore, files3dStore
-- **Database**: Dexie.js wrapping IndexedDB in `src/lib/db/index.ts`. Tables: settings, files3d
+- **Database**: Dexie.js wrapping IndexedDB in `src/lib/db/index.ts`. Tables: settings, files3d. `resetDatabase()` closes connection and deletes the entire DB (requires page reload after).
 - **Extractors**: `src/lib/extractors/` — ConceptExtractor interface, four engines behind a registry. All produce VisualizationSchema
 - **3D Entity DSL**: PlayCanvas-aligned component-bag structure. Entities have `components: { render, light, ... }` matching PlayCanvas API. Typed subset of common properties + `[key: string]: unknown` passthrough for advanced PlayCanvas properties. Design doc: `docs/plans/2026-02-22-dsl-redesign-design.md`
 - **Prefab System**: Named entity templates resolved at layer-creation time. Observation mode renderers use prefabs to map abstract concepts to 3D entities. Prefabs are data (JSON registry), not runtime instantiation.
 - **Observation Modes**: 3D renderers that take VisualizationSchema → Layer3d[]. Each mode has its own visual language (spatial metaphor, color palette, prefabs). Registered via ObservationModeRegistry.
-- **Glass Modals**: Settings, Help, Onboarding use shared `GlassModal.svelte` wrapper. URL-driven via SvelteKit shallow routing (`pushState` from `$app/navigation`, state read from `$page.state.modal`). Scene stays mounted.
+- **Glass Modals**: Settings, Help, Onboarding use shared `GlassModal.svelte` wrapper. URL-driven via SvelteKit shallow routing (`pushState` from `$app/navigation`, state read from `$page.state.modal`). Scene stays mounted. Stacked modals (e.g. reset confirmations) use DOM order for z-index.
+- **Onboarding Wizard**: 4-step wizard (Welcome → NLP Models → LLM Config → Get Started) in `OnboardingModal.svelte`. Step 2 offers optional pre-download of TF.js USE model via `warmupTier2Model()`. Step 4 lets user pick a starter scene. Persists `onboardingCompleted` flag in settings.
+- **Settings Reset**: Danger zone in `SettingsModal.svelte` with double glass-modal confirmation → `resetDatabase()` → countdown reload modal. Uses `resetStep` state machine (0→1→2→3).
 - **Hex Dial**: Two bays (Scene, App) with face→fan-out interaction. Faces with `options: []` trigger toggle directly (no fan-out). Config in `hexagon-dial-bays.ts`.
 
 ## Commands
@@ -30,7 +32,7 @@ npm run check        # svelte-check type checking
 - Svelte 5 runes only — no legacy `$:` reactive statements, no `export let`
 - Component props via `interface Props` + `$props()`
 - Tailwind CSS 4 with `@tailwindcss/vite` plugin (not PostCSS)
-- CSS custom properties for adaptive theming (`--accent`, `--glass-bg`, etc.) in `src/app.css`
+- CSS custom properties for adaptive theming (`--accent`, `--glass-bg`, `--danger`, etc.) in `src/app.css`
 - TDD: tests live next to source files (`*.test.ts`)
 - No direct HTML string injection (innerHTML, document writing methods) — security hooks reject these. Always use DOM manipulation: createElement, appendChild, cloneNode
 
@@ -51,7 +53,7 @@ src/
     stores/            # Svelte stores (settings, files3d)
     llm/               # LLM client, prompts, parser
     extractors/        # ConceptExtractor engines + registry
-    pipeline/          # Extraction pipeline orchestrator
+    pipeline/          # Extraction pipeline orchestrator + tier2 model warmup
     3d/                # Entity DSL, compositor, animation, observation modes, prefabs
     components/
       AppShell.svelte  # Global layout wrapper
