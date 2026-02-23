@@ -7,6 +7,9 @@ const mockMode: ObservationMode = {
 	id: 'test',
 	name: 'Test Mode',
 	description: 'A test mode',
+	roles: [],
+	prefabs: [],
+	storyFocus: 'Test focus',
 	render: vi.fn(() => []),
 };
 

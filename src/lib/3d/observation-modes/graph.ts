@@ -57,6 +57,58 @@ export const graphMode: ObservationMode = {
 	name: 'Graph',
 	description: 'Concept graph with nodes and connections in 3D space',
 
+	roles: [
+		{ id: 'core', label: 'Core', description: 'Central concept the text revolves around', prefab: 'graph:core', relevance: 'high' },
+		{ id: 'supporting', label: 'Supporting', description: 'Detail or elaboration on a core idea', prefab: 'graph:supporting', relevance: 'high' },
+		{ id: 'peripheral', label: 'Peripheral', description: 'Background context or tangential mention', prefab: 'graph:peripheral', relevance: 'medium' },
+		{ id: 'emergent', label: 'Emergent', description: 'Result, conclusion, or outcome', prefab: 'graph:emergent', relevance: 'low' },
+	],
+
+	prefabs: [
+		{
+			id: 'graph:core',
+			description: 'Large bright sphere for core concepts',
+			template: {
+				components: { render: { type: 'sphere', castShadows: true } },
+				material: { diffuse: [0.31, 0.55, 1.0], metalness: 0.3, gloss: 0.6 },
+				scale: [1.5, 1.5, 1.5],
+			},
+			slots: ['label', 'weight'],
+		},
+		{
+			id: 'graph:supporting',
+			description: 'Medium green sphere for supporting concepts',
+			template: {
+				components: { render: { type: 'sphere', castShadows: true } },
+				material: { diffuse: [0.47, 0.78, 0.47], metalness: 0.3, gloss: 0.6 },
+				scale: [1.0, 1.0, 1.0],
+			},
+			slots: ['label', 'weight'],
+		},
+		{
+			id: 'graph:peripheral',
+			description: 'Small amber sphere for peripheral concepts',
+			template: {
+				components: { render: { type: 'sphere', castShadows: true } },
+				material: { diffuse: [0.78, 0.63, 0.31], metalness: 0.3, gloss: 0.6 },
+				scale: [0.7, 0.7, 0.7],
+			},
+			slots: ['label', 'weight'],
+		},
+		{
+			id: 'graph:emergent',
+			description: 'Torus shape for emergent conclusions',
+			template: {
+				components: { render: { type: 'torus', castShadows: true } },
+				material: { diffuse: [0.78, 0.31, 0.63], metalness: 0.3, gloss: 0.6 },
+				scale: [1.0, 1.0, 1.0],
+			},
+			slots: ['label', 'weight'],
+		},
+	],
+
+	storyFocus: 'Classify each concept by structural importance: is it a core idea the text revolves around, a supporting detail, background context, or a result/conclusion?',
+
 	render(schema: VisualizationSchema, options?: RenderOptions): Layer3d[] {
 		const nodes = schema.nodes || [];
 		const edges = schema.edges || [];

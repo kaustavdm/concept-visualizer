@@ -51,4 +51,11 @@ describe('graphMode', () => {
 			expect(layer.observationMode).toBe('graph');
 		}
 	});
+
+	it('has required roles and prefabs', () => {
+		expect(graphMode.roles.length).toBe(4);
+		expect(graphMode.roles.map(r => r.id)).toEqual(['core', 'supporting', 'peripheral', 'emergent']);
+		expect(graphMode.prefabs.length).toBe(4);
+		expect(graphMode.storyFocus).toContain('structural importance');
+	});
 });

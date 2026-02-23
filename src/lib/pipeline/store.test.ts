@@ -12,8 +12,8 @@ describe('pipelineStore', () => {
   });
 
   it('setStage updates the current stage', () => {
-    pipelineStore.setStage('analyzing');
-    expect(get(pipelineStore).stage).toBe('analyzing');
+    pipelineStore.setStage('tier1-extracting');
+    expect(get(pipelineStore).stage).toBe('tier1-extracting');
   });
 
   it('setRecommendation stores type and confidence', () => {
@@ -40,7 +40,7 @@ describe('pipelineStore', () => {
   });
 
   it('reset returns to idle with no recommendation', () => {
-    pipelineStore.setStage('extracting');
+    pipelineStore.setStage('tier1-extracting');
     pipelineStore.setRecommendation({ type: 'tree', confidence: 0.7 });
     pipelineStore.reset();
     const state = get(pipelineStore);
@@ -48,5 +48,16 @@ describe('pipelineStore', () => {
     expect(state.recommendation).toBeNull();
     expect(state.scores).toBeNull();
     expect(state.error).toBeNull();
+  });
+
+  it('accepts tier-specific stage values', () => {
+    pipelineStore.setStage('tier1-extracting');
+    expect(get(pipelineStore).stage).toBe('tier1-extracting');
+
+    pipelineStore.setStage('tier2-embedding');
+    expect(get(pipelineStore).stage).toBe('tier2-embedding');
+
+    pipelineStore.setStage('interrupted');
+    expect(get(pipelineStore).stage).toBe('interrupted');
   });
 });

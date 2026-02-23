@@ -9,11 +9,20 @@ export interface RenderOptions {
 	messageId?: string;
 }
 
+export interface ModeRole {
+	id: string;
+	label: string;
+	description: string;
+	prefab: string;
+	relevance: 'high' | 'medium' | 'low';
+}
+
 export interface ObservationMode {
 	id: string;
 	name: string;
 	description: string;
-	prefabs?: PrefabDefinition[];
+	roles: ModeRole[];
+	prefabs: PrefabDefinition[];
+	storyFocus: string;
 	render(schema: VisualizationSchema, options?: RenderOptions): Layer3d[];
-	systemPromptOverride?: string;
 }
