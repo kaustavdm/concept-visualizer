@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { CameraMode } from '$lib/3d/createScene';
+  import type { PipelineStage } from '$lib/pipeline/types';
   import { fpsToColor } from '$lib/3d/fps-color';
 
   interface StatusBarConfig {
@@ -17,6 +18,8 @@
     activeFileName: string | null;
     fps?: number;
     config?: StatusBarConfig;
+    pipelineStage?: PipelineStage;
+    onAbort?: () => void;
   }
 
   let {
@@ -26,6 +29,8 @@
     activeFileName,
     fps = 0,
     config = { fps: false, mode: true, movement: true, filename: true, bar: true },
+    pipelineStage = 'idle',
+    onAbort,
   }: Props = $props();
 
   let fpsStyle = $derived.by(() => {
@@ -35,6 +40,39 @@
       textShadow: glow ? `0 0 6px ${color}` : 'none',
     };
   });
+
+  const STAGE_COLORS: Record<string, string> = {
+    'tier1-extracting': '#f59e0b',
+    'tier1-complete': '#f59e0b',
+    'tier2-embedding': '#3b82f6',
+    'tier2-clustering': '#3b82f6',
+    'tier2-complete': '#3b82f6',
+    'tier3-enriching': '#8b5cf6',
+    'tier3-complete': '#8b5cf6',
+    'complete': '#22c55e',
+    'interrupted': '#f97316',
+    'error': '#ef4444',
+  };
+
+  const STAGE_LABELS: Record<string, string> = {
+    'tier1-extracting': 'T1',
+    'tier1-complete': 'T1',
+    'tier2-embedding': 'T2',
+    'tier2-clustering': 'T2',
+    'tier2-complete': 'T2',
+    'tier3-enriching': 'T3',
+    'tier3-complete': 'T3',
+    'complete': 'OK',
+    'interrupted': 'STOP',
+    'error': 'ERR',
+  };
+
+  let stageColor = $derived(STAGE_COLORS[pipelineStage] ?? '');
+  let stageLabel = $derived(STAGE_LABELS[pipelineStage] ?? '');
+  let stageActive = $derived(
+    pipelineStage.startsWith('tier') && !pipelineStage.endsWith('-complete')
+  );
+  let stageVisible = $derived(pipelineStage !== 'idle');
 </script>
 
 {#if config.bar}
@@ -48,6 +86,18 @@
       >
         {mode === 'command' ? 'COMMAND' : 'INPUT'}
       </span>
+    {/if}
+    {#if stageVisible}
+      <button
+        class="pipeline-badge"
+        class:pipeline-pulse={stageActive}
+        style="color: {stageColor}; background: {stageColor}1f;"
+        onclick={() => stageActive && onAbort?.()}
+        disabled={!stageActive}
+        title={stageActive ? 'Click to abort' : pipelineStage}
+      >
+        {stageLabel}
+      </button>
     {/if}
     {#if config.movement}
       <span class="camera-label">{cameraMode.toUpperCase()}</span>
@@ -153,5 +203,36 @@
     letter-spacing: 0.04em;
     font-variant-numeric: tabular-nums;
     transition: color 0.3s;
+  }
+
+  .pipeline-badge {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding: 1px 6px;
+    border-radius: 3px;
+    line-height: 1.4;
+    border: none;
+    cursor: default;
+    font-family: inherit;
+    transition: opacity 0.2s;
+  }
+
+  .pipeline-badge:not(:disabled) {
+    cursor: pointer;
+  }
+
+  .pipeline-badge:not(:disabled):hover {
+    opacity: 0.8;
+  }
+
+  .pipeline-pulse {
+    animation: pipeline-pulse 1.2s ease-in-out infinite;
+  }
+
+  @keyframes pipeline-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
   }
 </style>
